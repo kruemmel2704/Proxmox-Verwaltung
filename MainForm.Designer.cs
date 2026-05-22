@@ -19,10 +19,9 @@ namespace ProxmoxVEGui
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle3 = new System.Windows.Forms.DataGridViewCellStyle();
-            this.panelLeft = new System.Windows.Forms.Panel();
+            this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.lblSidebarHeader = new System.Windows.Forms.Label();
             this.treeResources = new System.Windows.Forms.TreeView();
-            this.panelMain = new System.Windows.Forms.Panel();
             this.panelContentContainer = new System.Windows.Forms.Panel();
             this.panelConsole = new System.Windows.Forms.Panel();
             this.lblConsoleWarning = new System.Windows.Forms.Label();
@@ -51,25 +50,27 @@ namespace ProxmoxVEGui
             this.colStatus = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.lblTasksHeader = new System.Windows.Forms.Label();
             this.panelSubNavigation = new System.Windows.Forms.Panel();
-            this.btnRefresh = new System.Windows.Forms.Button();
-            this.btnCreateLxc = new System.Windows.Forms.Button();
-            this.btnCreateVm = new System.Windows.Forms.Button();
+            this.btnRefresh = new RoundedButton();
+            this.btnCreateLxc = new RoundedButton();
+            this.btnCreateVm = new RoundedButton();
             this.btnTabConsole = new System.Windows.Forms.Button();
             this.btnTabConfig = new System.Windows.Forms.Button();
             this.btnTabDashboard = new System.Windows.Forms.Button();
             this.panelHeader = new System.Windows.Forms.Panel();
             this.flowLayoutActions = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnStart = new System.Windows.Forms.Button();
-            this.btnStop = new System.Windows.Forms.Button();
-            this.btnShutdown = new System.Windows.Forms.Button();
-            this.btnReboot = new System.Windows.Forms.Button();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnLogout = new System.Windows.Forms.Button();
+            this.btnStart = new RoundedButton();
+            this.btnStop = new RoundedButton();
+            this.btnShutdown = new RoundedButton();
+            this.btnReboot = new RoundedButton();
+            this.btnDelete = new RoundedButton();
+            this.btnLogout = new RoundedButton();
             this.lblResourceStatus = new System.Windows.Forms.Label();
             this.lblSelectedResource = new System.Windows.Forms.Label();
             this.timerRefresh = new System.Windows.Forms.Timer(this.components);
-            this.panelLeft.SuspendLayout();
-            this.panelMain.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
+            this.splitContainer1.Panel1.SuspendLayout();
+            this.splitContainer1.Panel2.SuspendLayout();
+            this.splitContainer1.SuspendLayout();
             this.panelContentContainer.SuspendLayout();
             this.panelConsole.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.webViewConsole)).BeginInit();
@@ -83,19 +84,35 @@ namespace ProxmoxVEGui
             this.flowLayoutActions.SuspendLayout();
             this.SuspendLayout();
             // 
-            // panelLeft
+            // splitContainer1
             // 
-            this.panelLeft.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-            this.panelLeft.Controls.Add(this.lblSidebarHeader);
-            this.panelLeft.Controls.Add(this.treeResources);
-            this.panelLeft.Dock = System.Windows.Forms.DockStyle.Left;
-            this.panelLeft.Location = new System.Drawing.Point(0, 0);
-            this.panelLeft.Name = "panelLeft";
-            this.panelLeft.Size = new System.Drawing.Size(260, 681);
-            this.panelLeft.TabIndex = 0;
+            this.splitContainer1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
+            this.splitContainer1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainer1.Location = new System.Drawing.Point(0, 0);
+            this.splitContainer1.Name = "splitContainer1";
+            this.splitContainer1.Size = new System.Drawing.Size(1184, 681);
+            this.splitContainer1.SplitterDistance = 260;
+            this.splitContainer1.SplitterWidth = 4;
+            this.splitContainer1.TabIndex = 0;
+            // 
+            // splitContainer1.Panel1
+            // 
+            this.splitContainer1.Panel1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
+            this.splitContainer1.Panel1.Controls.Add(this.lblSidebarHeader);
+            this.splitContainer1.Panel1.Controls.Add(this.treeResources);
+            // 
+            // splitContainer1.Panel2
+            // 
+            this.splitContainer1.Panel2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(10)))), ((int)(((byte)(15)))), ((int)(((byte)(25)))));
+            this.splitContainer1.Panel2.Controls.Add(this.panelContentContainer);
+            this.splitContainer1.Panel2.Controls.Add(this.panelTasksLog);
+            this.splitContainer1.Panel2.Controls.Add(this.panelSubNavigation);
+            this.splitContainer1.Panel2.Controls.Add(this.panelHeader);
             // 
             // lblSidebarHeader
             // 
+            this.lblSidebarHeader.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.lblSidebarHeader.Font = new System.Drawing.Font("Segoe UI Semibold", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblSidebarHeader.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(249)))), ((int)(((byte)(115)))), ((int)(((byte)(22)))));
             this.lblSidebarHeader.Location = new System.Drawing.Point(12, 18);
@@ -110,7 +127,7 @@ namespace ProxmoxVEGui
             this.treeResources.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.treeResources.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.treeResources.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
             this.treeResources.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.treeResources.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.treeResources.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
@@ -120,19 +137,6 @@ namespace ProxmoxVEGui
             this.treeResources.Size = new System.Drawing.Size(236, 609);
             this.treeResources.TabIndex = 1;
             this.treeResources.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeResources_AfterSelect);
-            // 
-            // panelMain
-            // 
-            this.panelMain.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
-            this.panelMain.Controls.Add(this.panelContentContainer);
-            this.panelMain.Controls.Add(this.panelTasksLog);
-            this.panelMain.Controls.Add(this.panelSubNavigation);
-            this.panelMain.Controls.Add(this.panelHeader);
-            this.panelMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panelMain.Location = new System.Drawing.Point(260, 0);
-            this.panelMain.Name = "panelMain";
-            this.panelMain.Size = new System.Drawing.Size(924, 681);
-            this.panelMain.TabIndex = 1;
             // 
             // panelContentContainer
             // 
@@ -171,7 +175,7 @@ namespace ProxmoxVEGui
             // 
             this.webViewConsole.AllowExternalDrop = true;
             this.webViewConsole.CreationProperties = null;
-            this.webViewConsole.DefaultBackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.webViewConsole.DefaultBackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
             this.webViewConsole.Dock = System.Windows.Forms.DockStyle.Fill;
             this.webViewConsole.Location = new System.Drawing.Point(0, 0);
             this.webViewConsole.Name = "webViewConsole";
@@ -206,7 +210,7 @@ namespace ProxmoxVEGui
             // 
             this.chartRam.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-            this.chartRam.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.chartRam.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.chartRam.ChartColor = System.Drawing.Color.FromArgb(((int)(((byte)(59)))), ((int)(((byte)(130)))), ((int)(((byte)(246)))));
             this.chartRam.Location = new System.Drawing.Point(455, 0);
             this.chartRam.Name = "chartRam";
@@ -219,7 +223,7 @@ namespace ProxmoxVEGui
             // 
             this.chartCpu.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-            this.chartCpu.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.chartCpu.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.chartCpu.ChartColor = System.Drawing.Color.FromArgb(((int)(((byte)(34)))), ((int)(((byte)(197)))), ((int)(((byte)(94)))));
             this.chartCpu.Location = new System.Drawing.Point(0, 0);
             this.chartCpu.Name = "chartCpu";
@@ -232,7 +236,7 @@ namespace ProxmoxVEGui
             // 
             this.panelSpecsCard.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.panelSpecsCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.panelSpecsCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.panelSpecsCard.Controls.Add(this.lblDetailDisk);
             this.panelSpecsCard.Controls.Add(this.lblDetailIp);
             this.panelSpecsCard.Controls.Add(this.lblDetailHa);
@@ -361,7 +365,7 @@ namespace ProxmoxVEGui
             // 
             // panelTasksLog
             // 
-            this.panelTasksLog.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.panelTasksLog.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.panelTasksLog.Controls.Add(this.gridTasks);
             this.panelTasksLog.Controls.Add(this.lblTasksHeader);
             this.panelTasksLog.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -375,14 +379,14 @@ namespace ProxmoxVEGui
             this.gridTasks.AllowUserToAddRows = false;
             this.gridTasks.AllowUserToDeleteRows = false;
             this.gridTasks.AllowUserToResizeRows = false;
-            this.gridTasks.BackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.gridTasks.BackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
             this.gridTasks.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.gridTasks.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.Single;
             dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             dataGridViewCellStyle1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            dataGridViewCellStyle1.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             dataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.gridTasks.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle1;
@@ -394,23 +398,23 @@ namespace ProxmoxVEGui
             this.colDescription,
             this.colStatus});
             dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
             dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             dataGridViewCellStyle2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(65)))), ((int)(((byte)(85)))));
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             dataGridViewCellStyle2.SelectionForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
             this.gridTasks.DefaultCellStyle = dataGridViewCellStyle2;
             this.gridTasks.Dock = System.Windows.Forms.DockStyle.Fill;
             this.gridTasks.EnableHeadersVisualStyles = false;
-            this.gridTasks.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.gridTasks.GridColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             this.gridTasks.Location = new System.Drawing.Point(0, 30);
             this.gridTasks.MultiSelect = false;
             this.gridTasks.Name = "gridTasks";
             this.gridTasks.ReadOnly = true;
             this.gridTasks.RowHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.Single;
             dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle3.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            dataGridViewCellStyle3.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
             dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
@@ -459,7 +463,7 @@ namespace ProxmoxVEGui
             // 
             // lblTasksHeader
             // 
-            this.lblTasksHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.lblTasksHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.lblTasksHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.lblTasksHeader.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblTasksHeader.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(249)))), ((int)(((byte)(115)))), ((int)(((byte)(22)))));
@@ -473,7 +477,7 @@ namespace ProxmoxVEGui
             // 
             // panelSubNavigation
             // 
-            this.panelSubNavigation.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(65)))), ((int)(((byte)(85)))));
+            this.panelSubNavigation.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.panelSubNavigation.Controls.Add(this.btnRefresh);
             this.panelSubNavigation.Controls.Add(this.btnCreateLxc);
             this.panelSubNavigation.Controls.Add(this.btnCreateVm);
@@ -488,6 +492,7 @@ namespace ProxmoxVEGui
             // 
             // btnRefresh
             // 
+            this.btnRefresh.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnRefresh.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
             this.btnRefresh.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnRefresh.FlatAppearance.BorderSize = 0;
@@ -504,13 +509,14 @@ namespace ProxmoxVEGui
             // 
             // btnCreateLxc
             // 
+            this.btnCreateLxc.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnCreateLxc.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(14)))), ((int)(((byte)(165)))), ((int)(((byte)(233)))));
             this.btnCreateLxc.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnCreateLxc.FlatAppearance.BorderSize = 0;
             this.btnCreateLxc.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCreateLxc.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnCreateLxc.ForeColor = System.Drawing.Color.White;
-            this.btnCreateLxc.Location = new System.Drawing.Point(440, 5);
+            this.btnCreateLxc.Location = new System.Drawing.Point(610, 5);
             this.btnCreateLxc.Name = "btnCreateLxc";
             this.btnCreateLxc.Size = new System.Drawing.Size(120, 30);
             this.btnCreateLxc.TabIndex = 3;
@@ -520,13 +526,14 @@ namespace ProxmoxVEGui
             // 
             // btnCreateVm
             // 
+            this.btnCreateVm.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnCreateVm.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(34)))), ((int)(((byte)(197)))), ((int)(((byte)(94)))));
             this.btnCreateVm.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnCreateVm.FlatAppearance.BorderSize = 0;
             this.btnCreateVm.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCreateVm.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnCreateVm.ForeColor = System.Drawing.Color.White;
-            this.btnCreateVm.Location = new System.Drawing.Point(310, 5);
+            this.btnCreateVm.Location = new System.Drawing.Point(480, 5);
             this.btnCreateVm.Name = "btnCreateVm";
             this.btnCreateVm.Size = new System.Drawing.Size(120, 30);
             this.btnCreateVm.TabIndex = 2;
@@ -539,8 +546,8 @@ namespace ProxmoxVEGui
             this.btnTabConsole.BackColor = System.Drawing.Color.Transparent;
             this.btnTabConsole.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnTabConsole.FlatAppearance.BorderSize = 0;
-            this.btnTabConsole.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-            this.btnTabConsole.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(47)))), ((int)(((byte)(55)))), ((int)(((byte)(70)))));
+            this.btnTabConsole.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
+            this.btnTabConsole.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             this.btnTabConsole.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnTabConsole.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnTabConsole.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
@@ -557,8 +564,8 @@ namespace ProxmoxVEGui
             this.btnTabConfig.BackColor = System.Drawing.Color.Transparent;
             this.btnTabConfig.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnTabConfig.FlatAppearance.BorderSize = 0;
-            this.btnTabConfig.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
-            this.btnTabConfig.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(47)))), ((int)(((byte)(55)))), ((int)(((byte)(70)))));
+            this.btnTabConfig.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
+            this.btnTabConfig.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             this.btnTabConfig.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnTabConfig.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnTabConfig.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
@@ -572,12 +579,14 @@ namespace ProxmoxVEGui
             // 
             // btnTabDashboard
             // 
-            this.btnTabDashboard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.btnTabDashboard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(10)))), ((int)(((byte)(15)))), ((int)(((byte)(25)))));
             this.btnTabDashboard.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnTabDashboard.FlatAppearance.BorderSize = 0;
+            this.btnTabDashboard.FlatAppearance.MouseDownBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
+            this.btnTabDashboard.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             this.btnTabDashboard.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnTabDashboard.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnTabDashboard.ForeColor = System.Drawing.Color.White;
+            this.btnTabDashboard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(249)))), ((int)(((byte)(115)))), ((int)(((byte)(22)))));
             this.btnTabDashboard.Location = new System.Drawing.Point(0, 0);
             this.btnTabDashboard.Name = "btnTabDashboard";
             this.btnTabDashboard.Size = new System.Drawing.Size(120, 40);
@@ -588,7 +597,7 @@ namespace ProxmoxVEGui
             // 
             // panelHeader
             // 
-            this.panelHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.panelHeader.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.panelHeader.Controls.Add(this.flowLayoutActions);
             this.panelHeader.Controls.Add(this.btnLogout);
             this.panelHeader.Controls.Add(this.lblResourceStatus);
@@ -695,7 +704,7 @@ namespace ProxmoxVEGui
             // btnLogout
             // 
             this.btnLogout.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnLogout.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
+            this.btnLogout.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(55)))), ((int)(((byte)(65)))), ((int)(((byte)(81)))));
             this.btnLogout.Cursor = System.Windows.Forms.Cursors.Hand;
             this.btnLogout.FlatAppearance.BorderSize = 0;
             this.btnLogout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -741,17 +750,14 @@ namespace ProxmoxVEGui
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(10)))), ((int)(((byte)(15)))), ((int)(((byte)(25)))));
             this.ClientSize = new System.Drawing.Size(1184, 681);
-            this.Controls.Add(this.panelMain);
-            this.Controls.Add(this.panelLeft);
+            this.Controls.Add(this.splitContainer1);
             this.MinimumSize = new System.Drawing.Size(1000, 600);
             this.Name = "MainForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Proxmox VE Manager - Console & Cluster Administration";
             this.Load += new System.EventHandler(this.MainForm_Load);
-            this.panelLeft.ResumeLayout(false);
-            this.panelMain.ResumeLayout(false);
             this.panelContentContainer.ResumeLayout(false);
             this.panelConsole.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.webViewConsole)).EndInit();
@@ -765,31 +771,34 @@ namespace ProxmoxVEGui
             this.panelHeader.ResumeLayout(false);
             this.panelHeader.PerformLayout();
             this.flowLayoutActions.ResumeLayout(false);
+            this.splitContainer1.Panel1.ResumeLayout(false);
+            this.splitContainer1.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
+            this.splitContainer1.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
 
-        private System.Windows.Forms.Panel panelLeft;
+        private System.Windows.Forms.SplitContainer splitContainer1;
         private System.Windows.Forms.Label lblSidebarHeader;
         private System.Windows.Forms.TreeView treeResources;
-        private System.Windows.Forms.Panel panelMain;
         private System.Windows.Forms.Panel panelHeader;
         private System.Windows.Forms.Label lblSelectedResource;
         private System.Windows.Forms.Label lblResourceStatus;
-        private System.Windows.Forms.Button btnLogout;
+        private RoundedButton btnLogout;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutActions;
-        private System.Windows.Forms.Button btnStart;
-        private System.Windows.Forms.Button btnStop;
-        private System.Windows.Forms.Button btnShutdown;
-        private System.Windows.Forms.Button btnReboot;
-        private System.Windows.Forms.Button btnDelete;
+        private RoundedButton btnStart;
+        private RoundedButton btnStop;
+        private RoundedButton btnShutdown;
+        private RoundedButton btnReboot;
+        private RoundedButton btnDelete;
         private System.Windows.Forms.Panel panelSubNavigation;
         private System.Windows.Forms.Button btnTabDashboard;
         private System.Windows.Forms.Button btnTabConsole;
         private System.Windows.Forms.Button btnTabConfig;
-        private System.Windows.Forms.Button btnCreateVm;
-        private System.Windows.Forms.Button btnCreateLxc;
-        private System.Windows.Forms.Button btnRefresh;
+        private RoundedButton btnCreateVm;
+        private RoundedButton btnCreateLxc;
+        private RoundedButton btnRefresh;
         private System.Windows.Forms.Panel panelContentContainer;
         private System.Windows.Forms.Panel panelDashboard;
         private System.Windows.Forms.Panel panelConsole;

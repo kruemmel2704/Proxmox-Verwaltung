@@ -21,9 +21,9 @@ namespace ProxmoxVEGui
             this.lblWizardSteps = new System.Windows.Forms.Label();
             this.lblTitle = new System.Windows.Forms.Label();
             this.panelFooter = new System.Windows.Forms.Panel();
-            this.btnBack = new System.Windows.Forms.Button();
-            this.btnNext = new System.Windows.Forms.Button();
-            this.btnCancel = new System.Windows.Forms.Button();
+            this.btnBack = new RoundedButton();
+            this.btnNext = new RoundedButton();
+            this.btnCancel = new RoundedButton();
             this.tabWizard = new System.Windows.Forms.TabControl();
             
             // TabPages
@@ -997,9 +997,9 @@ namespace ProxmoxVEGui
         private System.Windows.Forms.Label lblTitle;
         private System.Windows.Forms.Label lblWizardSteps;
         private System.Windows.Forms.Panel panelFooter;
-        private System.Windows.Forms.Button btnBack;
-        private System.Windows.Forms.Button btnNext;
-        private System.Windows.Forms.Button btnCancel;
+        private RoundedButton btnBack;
+        private RoundedButton btnNext;
+        private RoundedButton btnCancel;
         private System.Windows.Forms.TabControl tabWizard;
         
         private System.Windows.Forms.TabPage tabGeneral;

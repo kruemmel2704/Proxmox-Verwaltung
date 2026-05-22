@@ -330,7 +330,7 @@ namespace ProxmoxVEGui
             {
                 if (this.Width <= 0 || this.Height <= 0) return;
 
-                using (GraphicsPath path = GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
                 {
                     this.Region = new Region(path);
                 }
@@ -356,7 +356,7 @@ namespace ProxmoxVEGui
 
                 Rectangle rect = new Rectangle(2, 2, this.Width - 5, this.Height - 5);
 
-                using (GraphicsPath path = GetRoundedPath(rect, BorderRadius))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, BorderRadius))
                 using (SolidBrush brush = new SolidBrush(InnerBackColor))
                 using (Pen pen = new Pen(borderColor, borderWidth))
                 {
@@ -472,7 +472,7 @@ namespace ProxmoxVEGui
             {
                 if (this.Width <= 0 || this.Height <= 0) return;
 
-                using (GraphicsPath path = GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), 11))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), 11))
                 {
                     this.Region = new Region(path);
                 }
@@ -556,7 +556,7 @@ namespace ProxmoxVEGui
 
                 Rectangle rect = new Rectangle(1, 1, this.Width - 3, this.Height - 3);
 
-                using (GraphicsPath path = GetRoundedPath(rect, 11))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, 11))
                 using (SolidBrush brush = new SolidBrush(Color.FromArgb(12, 18, 31)))
                 using (Pen pen = new Pen(borderColor, active ? 2F : 1F))
                 {
@@ -742,7 +742,7 @@ namespace ProxmoxVEGui
 
                 if (this.Width > 0 && this.Height > 0)
                 {
-                    using (GraphicsPath path = GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
+                    using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
                     {
                         this.Region = new Region(path);
                     }
@@ -758,7 +758,7 @@ namespace ProxmoxVEGui
 
                 Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
 
-                using (GraphicsPath path = GetRoundedPath(rect, BorderRadius))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, BorderRadius))
                 using (SolidBrush brush = new SolidBrush(this.BackColor))
                 using (Pen pen = new Pen(BorderColor, BorderSize))
                 {
@@ -766,118 +766,6 @@ namespace ProxmoxVEGui
                     e.Graphics.DrawPath(pen, path);
                 }
             }
-        }
-
-        private class RoundedButton : Button
-        {
-            public int BorderRadius { get; set; } = 10;
-
-            private bool isHover = false;
-            private bool isDown = false;
-
-            private readonly Color normalColor = Color.FromArgb(249, 115, 22);
-            private readonly Color hoverColor = Color.FromArgb(251, 146, 60);
-            private readonly Color downColor = Color.FromArgb(194, 65, 12);
-
-            public RoundedButton()
-            {
-                this.SetStyle(
-                    ControlStyles.AllPaintingInWmPaint |
-                    ControlStyles.OptimizedDoubleBuffer |
-                    ControlStyles.UserPaint |
-                    ControlStyles.ResizeRedraw,
-                    true
-                );
-
-                this.FlatStyle = FlatStyle.Flat;
-                this.FlatAppearance.BorderSize = 0;
-            }
-
-            protected override void OnMouseEnter(EventArgs e)
-            {
-                base.OnMouseEnter(e);
-                isHover = true;
-                this.Invalidate();
-            }
-
-            protected override void OnMouseLeave(EventArgs e)
-            {
-                base.OnMouseLeave(e);
-                isHover = false;
-                isDown = false;
-                this.Invalidate();
-            }
-
-            protected override void OnMouseDown(MouseEventArgs mevent)
-            {
-                base.OnMouseDown(mevent);
-                isDown = true;
-                this.Invalidate();
-            }
-
-            protected override void OnMouseUp(MouseEventArgs mevent)
-            {
-                base.OnMouseUp(mevent);
-                isDown = false;
-                this.Invalidate();
-            }
-
-            protected override void OnPaint(PaintEventArgs pevent)
-            {
-                pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                pevent.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                Color fillColor = isDown ? downColor : isHover ? hoverColor : normalColor;
-
-                Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
-
-                using (GraphicsPath path = GetRoundedPath(rect, BorderRadius))
-                using (SolidBrush brush = new SolidBrush(fillColor))
-                {
-                    pevent.Graphics.FillPath(brush, path);
-                }
-
-                TextRenderer.DrawText(
-                    pevent.Graphics,
-                    this.Text,
-                    this.Font,
-                    new Rectangle(0, 0, this.Width, this.Height),
-                    this.ForeColor,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
-                );
-            }
-
-            protected override void OnResize(EventArgs e)
-            {
-                base.OnResize(e);
-
-                if (this.Width > 0 && this.Height > 0)
-                {
-                    using (GraphicsPath path = GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
-                    {
-                        this.Region = new Region(path);
-                    }
-                }
-            }
-        }
-
-        private static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
-        {
-            GraphicsPath path = new GraphicsPath();
-
-            int diameter = radius * 2;
-
-            if (diameter > rect.Width) diameter = rect.Width;
-            if (diameter > rect.Height) diameter = rect.Height;
-
-            path.StartFigure();
-            path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
-            path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
-            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
-            path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
-            path.CloseFigure();
-
-            return path;
         }
     }
 }
