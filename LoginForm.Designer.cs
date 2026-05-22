@@ -70,14 +70,18 @@ namespace ProxmoxVEGui
             this.AutoScaleDimensions = new SizeF(96F, 96F);
             this.AutoScaleMode = AutoScaleMode.Dpi;
             this.BackColor = Color.FromArgb(10, 15, 25);
-            this.ClientSize = new Size(620, 710);
+            this.ClientSize = new Size(1280, 720);
+            this.MinimumSize = new Size(900, 650);
             this.Font = new Font("Segoe UI", 10F);
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            this.MaximizeBox = true;
+            this.MinimizeBox = true;
+            this.WindowState = FormWindowState.Maximized;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Text = "Proxmox VE Manager - Login";
             this.AcceptButton = this.btnLogin;
             this.Load += new EventHandler(this.LoginForm_Load);
+            this.Resize += new EventHandler(this.LoginForm_Resize);
 
             this.lblTitle.AutoSize = true;
             this.lblTitle.Font = new Font("Segoe UI", 30F, FontStyle.Bold);
@@ -186,7 +190,7 @@ namespace ProxmoxVEGui
 
             this.lblStatus.Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold);
             this.lblStatus.ForeColor = Color.FromArgb(239, 68, 68);
-            this.lblStatus.Location = new Point(30, 503);
+            this.lblStatus.Location = new Point(25, 503);
             this.lblStatus.Size = new Size(450, 24);
             this.lblStatus.TextAlign = ContentAlignment.MiddleCenter;
 
@@ -212,6 +216,104 @@ namespace ProxmoxVEGui
             this.panelCard.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
+
+            ApplyResponsiveLayout();
+        }
+
+        private void LoginForm_Resize(object sender, EventArgs e)
+        {
+            ApplyResponsiveLayout();
+        }
+
+        private void ApplyResponsiveLayout()
+        {
+            if (this.ClientSize.Width <= 0 || this.ClientSize.Height <= 0) return;
+
+            int clientWidth = this.ClientSize.Width;
+            int clientHeight = this.ClientSize.Height;
+
+            int cardWidth = 500;
+            int cardHeight = 530;
+
+            if (clientWidth < 620)
+            {
+                cardWidth = Math.Max(360, clientWidth - 40);
+            }
+
+            int titleSubtitleGap = 6;
+            int subtitleCardGap = 36;
+
+            int totalHeight =
+                this.lblTitle.Height +
+                titleSubtitleGap +
+                this.lblSubtitle.Height +
+                subtitleCardGap +
+                cardHeight;
+
+            int top = Math.Max(24, (clientHeight - totalHeight) / 2);
+
+            this.lblTitle.Location = new Point(
+                Math.Max(20, (clientWidth - this.lblTitle.Width) / 2),
+                top
+            );
+
+            this.lblSubtitle.Location = new Point(
+                Math.Max(20, (clientWidth - this.lblSubtitle.Width) / 2),
+                this.lblTitle.Bottom + titleSubtitleGap
+            );
+
+            this.panelCard.Size = new Size(cardWidth, cardHeight);
+            this.panelCard.Location = new Point(
+                Math.Max(20, (clientWidth - cardWidth) / 2),
+                this.lblSubtitle.Bottom + subtitleCardGap
+            );
+
+            ApplyCardLayout();
+        }
+
+        private void ApplyCardLayout()
+        {
+            int margin = 25;
+            int gap = 29;
+            int fullWidth = this.panelCard.Width - (margin * 2);
+
+            int portWidth = 100;
+            int hostWidth = fullWidth - gap - portWidth;
+
+            if (hostWidth < 180)
+            {
+                portWidth = 90;
+                gap = 18;
+                hostWidth = fullWidth - gap - portWidth;
+            }
+
+            this.lblHost.Location = new Point(margin, 25);
+            this.txtHost.Location = new Point(margin, 51);
+            this.txtHost.Size = new Size(hostWidth, 44);
+
+            this.lblPort.Location = new Point(margin + hostWidth + gap, 25);
+            this.txtPort.Location = new Point(margin + hostWidth + gap, 51);
+            this.txtPort.Size = new Size(portWidth, 44);
+
+            this.lblUsername.Location = new Point(margin, 121);
+            this.txtUsername.Location = new Point(margin, 147);
+            this.txtUsername.Size = new Size(fullWidth, 44);
+
+            this.lblPassword.Location = new Point(margin, 217);
+            this.txtPassword.Location = new Point(margin, 243);
+            this.txtPassword.Size = new Size(fullWidth, 44);
+
+            this.lblRealm.Location = new Point(margin, 313);
+            this.cmbRealm.Location = new Point(margin, 339);
+            this.cmbRealm.Size = new Size(fullWidth, 44);
+
+            this.chkIgnoreSsl.Location = new Point(margin, 400);
+
+            this.btnLogin.Location = new Point(margin, 448);
+            this.btnLogin.Size = new Size(fullWidth, 52);
+
+            this.lblStatus.Location = new Point(margin, 503);
+            this.lblStatus.Size = new Size(fullWidth, 24);
         }
 
         private class ModernTextBox : UserControl
