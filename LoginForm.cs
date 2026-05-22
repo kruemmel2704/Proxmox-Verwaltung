@@ -43,12 +43,40 @@ namespace ProxmoxVEGui
         {
             InitializeComponent();
 
+            ApplyApplicationIcon();
+
             InitializeSavedProfilesUi();
             LoadSavedProfilesFromDisk();
             RefreshSavedProfilesList();
 
             this.Shown += LoginForm_Shown_CustomProfiles;
             this.Resize += LoginForm_Resize_CustomProfiles;
+        }
+
+        private void ApplyApplicationIcon()
+        {
+            try
+            {
+                string[] possibleIconPaths =
+                {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "img", "logo.ico"),
+                    Path.Combine(Application.StartupPath, "assets", "img", "logo.ico"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico")
+                };
+
+                foreach (string iconPath in possibleIconPaths)
+                {
+                    if (File.Exists(iconPath))
+                    {
+                        this.Icon = new Icon(iconPath);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // Icon ist optional. Die App soll trotzdem starten.
+            }
         }
 
         private void LoginForm_Load(object sender, EventArgs e)
@@ -187,6 +215,7 @@ namespace ProxmoxVEGui
                 lblSubtitle.Top
             );
         }
+
         private void BtnSaveProfile_Click(object sender, EventArgs e)
         {
             string host = txtHost.Text.Trim();
@@ -792,14 +821,17 @@ namespace ProxmoxVEGui
             {
                 Rectangle textRect = new Rectangle(14, 0, this.Width - 28, this.Height);
 
-                TextRenderer.DrawText(
-                    g,
-                    "Keine Profile gespeichert",
-                    new Font("Segoe UI", 9.5F),
-                    textRect,
-                    Color.FromArgb(156, 163, 175),
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
-                );
+                using (Font emptyFont = new Font("Segoe UI", 9.5F))
+                {
+                    TextRenderer.DrawText(
+                        g,
+                        "Keine Profile gespeichert",
+                        emptyFont,
+                        textRect,
+                        Color.FromArgb(156, 163, 175),
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
+                    );
+                }
             }
 
             private void DrawProfiles(Graphics g)
