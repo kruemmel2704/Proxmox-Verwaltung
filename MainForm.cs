@@ -205,6 +205,16 @@ namespace ProxmoxVEGui
             lblSelectedResource.Text = tag.Name ?? "Resource";
             UpdateActionButtonsState(tag);
 
+            bool isConfigurable = tag.Type == "vm" || tag.Type == "lxc";
+            if (btnTabConfig != null)
+            {
+                btnTabConfig.Enabled = isConfigurable;
+                if (!isConfigurable && _configPanel != null && _configPanel.Visible)
+                {
+                    SwitchToTab("dashboard");
+                }
+            }
+
             if (tag.Type == "datacenter")
             {
                 lblResourceType.Text = "Resource Type: Datacenter / Cluster";
@@ -428,12 +438,14 @@ namespace ProxmoxVEGui
             if (tabName == "dashboard")
             {
                 panelDashboard.Visible = true;
-                btnTabDashboard.BackColor = Color.FromArgb(30, 41, 59);
+                btnTabDashboard.BackColor = Color.FromArgb(10, 15, 25);
+                btnTabDashboard.ForeColor = Color.FromArgb(249, 115, 22);
             }
             else if (tabName == "console")
             {
                 panelConsole.Visible = true;
-                btnTabConsole.BackColor = Color.FromArgb(30, 41, 59);
+                btnTabConsole.BackColor = Color.FromArgb(10, 15, 25);
+                btnTabConsole.ForeColor = Color.FromArgb(249, 115, 22);
                 LoadConsoleForSelectedResource();
             }
             else if (tabName == "config")
@@ -441,7 +453,8 @@ namespace ProxmoxVEGui
                 if (_configPanel != null)
                 {
                     _configPanel.Visible = true;
-                    btnTabConfig.BackColor = Color.FromArgb(30, 41, 59);
+                    btnTabConfig.BackColor = Color.FromArgb(10, 15, 25);
+                    btnTabConfig.ForeColor = Color.FromArgb(249, 115, 22);
                     LoadConfigForSelectedResource();
                 }
             }
@@ -450,9 +463,19 @@ namespace ProxmoxVEGui
         private void ResetTabButtonColors()
         {
             var transparent = Color.Transparent;
+            var inactiveText = Color.FromArgb(203, 213, 225);
+
             btnTabDashboard.BackColor = transparent;
+            btnTabDashboard.ForeColor = inactiveText;
+
             btnTabConsole.BackColor = transparent;
-            if (btnTabConfig != null) btnTabConfig.BackColor = transparent;
+            btnTabConsole.ForeColor = inactiveText;
+
+            if (btnTabConfig != null)
+            {
+                btnTabConfig.BackColor = transparent;
+                btnTabConfig.ForeColor = inactiveText;
+            }
         }
 
         private async void LoadConfigForSelectedResource()

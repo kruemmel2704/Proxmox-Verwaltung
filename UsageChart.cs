@@ -22,7 +22,7 @@ namespace ProxmoxVEGui
                           ControlStyles.UserPaint |
                           ControlStyles.OptimizedDoubleBuffer |
                           ControlStyles.ResizeRedraw, true);
-            this.BackColor = Color.FromArgb(30, 41, 59); // slate-800 card bg
+            this.BackColor = Color.FromArgb(17, 24, 39); // slate-900 card bg (login panel)
             
             // Initialize with zeroes
             for (int i = 0; i < _maxPoints; i++)
@@ -57,7 +57,7 @@ namespace ProxmoxVEGui
             }
 
             // Draw grid lines
-            using (var gridPen = new Pen(Color.FromArgb(15, 23, 42), 1)) // slate-900
+            using (var gridPen = new Pen(Color.FromArgb(10, 15, 25), 1)) // slate-950 (login background)
             {
                 for (int i = 1; i < 4; i++)
                 {
@@ -67,7 +67,7 @@ namespace ProxmoxVEGui
             }
 
             // Draw border
-            using (var borderPen = new Pen(Color.FromArgb(51, 65, 85), 1)) // slate-700
+            using (var borderPen = new Pen(Color.FromArgb(55, 65, 81), 1)) // border color (login card border)
             {
                 g.DrawRectangle(borderPen, 0, 0, width - 1, height - 1);
             }
