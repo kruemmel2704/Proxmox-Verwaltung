@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
@@ -13,8 +15,31 @@ namespace ProxmoxVEGui
         private readonly ProxmoxClient _client;
         private List<PveNode> _cachedNodes = new List<PveNode>();
         private bool _webViewInitialized = false;
-        private string _lastSelectedKey = ""; // Track selected resource to prevent UI jumps
-        private ConfigPanel _configPanel; // Live configuration editor panel
+        private string _lastSelectedKey = "";
+        private ConfigPanel _configPanel;
+
+        private readonly Color _treeBackColor = Color.FromArgb(15, 23, 42);
+        private readonly Color _treeTextColor = Color.FromArgb(226, 232, 240);
+        private readonly Color _treeMutedTextColor = Color.FromArgb(148, 163, 184);
+        private readonly Color _treeGroupTextColor = Color.FromArgb(203, 213, 225);
+        private readonly Color _treeAccentColor = Color.FromArgb(249, 115, 22);
+        private readonly Color _treeLineColor = Color.FromArgb(71, 85, 105);
+        private readonly Color _treeSelectedBackColor = Color.FromArgb(249, 115, 22);
+        private readonly Color _treeSelectedTextColor = Color.White;
+
+        private readonly Color _statusRunningColor = Color.FromArgb(34, 197, 94);
+        private readonly Color _statusStoppedColor = Color.FromArgb(239, 68, 68);
+
+        private ModernScrollbarPart _treeScrollTrack;
+        private ModernScrollbarPart _treeScrollThumb;
+        private TreeViewNativeScrollbarHider _treeScrollbarHider;
+
+        private bool _treeScrollDragging = false;
+        private int _treeScrollDragOffsetY = 0;
+
+        private const int TreeScrollbarWidth = 8;
+        private const int TreeScrollbarMargin = 5;
+        private const int TreeScrollbarMinThumbHeight = 42;
 
         public MainForm(ProxmoxClient client)
         {
@@ -24,16 +49,513 @@ namespace ProxmoxVEGui
 
         private async void MainForm_Load(object sender, EventArgs e)
         {
-            // Create and add ConfigPanel to content container
+            ApplyTreeViewDesign();
+
             _configPanel = new ConfigPanel(_client);
             panelContentContainer.Controls.Add(_configPanel);
 
-            // Initial load
             await RefreshDataAsync();
             SelectDatacenterNode();
-            
-            // Start auto-refresh timer
+
             timerRefresh.Start();
+        }
+
+        private void ApplyTreeViewDesign()
+        {
+            treeResources.BackColor = _treeBackColor;
+            treeResources.ForeColor = _treeTextColor;
+            treeResources.LineColor = _treeLineColor;
+            treeResources.BorderStyle = BorderStyle.None;
+
+            treeResources.HideSelection = false;
+            treeResources.HotTracking = false;
+            treeResources.FullRowSelect = false;
+
+            treeResources.ShowLines = true;
+            treeResources.ShowRootLines = true;
+            treeResources.ShowPlusMinus = true;
+            treeResources.ShowNodeToolTips = true;
+
+            treeResources.ItemHeight = 23;
+            treeResources.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+
+            treeResources.Scrollable = true;
+
+            treeResources.DrawMode = TreeViewDrawMode.OwnerDrawText;
+            treeResources.DrawNode -= treeResources_DrawNode;
+            treeResources.DrawNode += treeResources_DrawNode;
+
+            treeResources.MouseWheel -= treeResources_MouseWheel;
+            treeResources.MouseWheel += treeResources_MouseWheel;
+
+            treeResources.AfterExpand -= treeResources_AfterExpandCollapse;
+            treeResources.AfterExpand += treeResources_AfterExpandCollapse;
+
+            treeResources.AfterCollapse -= treeResources_AfterExpandCollapse;
+            treeResources.AfterCollapse += treeResources_AfterExpandCollapse;
+
+            treeResources.AfterSelect -= treeResources_AfterSelect;
+            treeResources.AfterSelect += treeResources_AfterSelect;
+
+            treeResources.KeyDown -= treeResources_KeyDown;
+            treeResources.KeyDown += treeResources_KeyDown;
+
+            treeResources.Resize -= treeResources_ResizeOrMove;
+            treeResources.Resize += treeResources_ResizeOrMove;
+
+            treeResources.LocationChanged -= treeResources_ResizeOrMove;
+            treeResources.LocationChanged += treeResources_ResizeOrMove;
+
+            _treeScrollbarHider = new TreeViewNativeScrollbarHider();
+            _treeScrollbarHider.Attach(treeResources);
+
+            CreateTreeScrollbar();
+            PositionTreeScrollbar();
+            HideNativeTreeScrollbars();
+            UpdateTreeScrollbar();
+        }
+
+        private void CreateTreeScrollbar()
+        {
+            if (_treeScrollTrack == null)
+            {
+                _treeScrollTrack = new ModernScrollbarPart
+                {
+                    FillColor = Color.FromArgb(30, 41, 59),
+                    HoverColor = Color.FromArgb(30, 41, 59),
+                    Radius = 4,
+                    Cursor = Cursors.Hand,
+                    Visible = true
+                };
+
+                _treeScrollTrack.MouseDown += TreeScrollbarTrack_MouseDown;
+                _treeScrollTrack.MouseMove += TreeScrollbar_MouseMove;
+                _treeScrollTrack.MouseUp += TreeScrollbar_MouseUp;
+                _treeScrollTrack.MouseWheel += TreeScrollbar_MouseWheel;
+            }
+
+            if (_treeScrollTrack.Parent != treeResources)
+            {
+                _treeScrollTrack.Parent?.Controls.Remove(_treeScrollTrack);
+                treeResources.Controls.Add(_treeScrollTrack);
+            }
+
+            if (_treeScrollThumb == null)
+            {
+                _treeScrollThumb = new ModernScrollbarPart
+                {
+                    FillColor = Color.FromArgb(249, 115, 22),
+                    HoverColor = Color.FromArgb(251, 146, 60),
+                    Radius = 4,
+                    Cursor = Cursors.Hand,
+                    Visible = true
+                };
+
+                _treeScrollThumb.MouseDown += TreeScrollbarThumb_MouseDown;
+                _treeScrollThumb.MouseMove += TreeScrollbar_MouseMove;
+                _treeScrollThumb.MouseUp += TreeScrollbar_MouseUp;
+                _treeScrollThumb.MouseWheel += TreeScrollbar_MouseWheel;
+            }
+
+            if (_treeScrollThumb.Parent != _treeScrollTrack)
+            {
+                _treeScrollThumb.Parent?.Controls.Remove(_treeScrollThumb);
+                _treeScrollTrack.Controls.Add(_treeScrollThumb);
+            }
+
+            _treeScrollTrack.BringToFront();
+            _treeScrollThumb.BringToFront();
+            treeResources.Controls.SetChildIndex(_treeScrollTrack, 0);
+        }
+
+        private void PositionTreeScrollbar()
+        {
+            if (_treeScrollTrack == null) return;
+
+            int x = treeResources.ClientSize.Width - TreeScrollbarWidth - TreeScrollbarMargin;
+            int y = TreeScrollbarMargin;
+            int height = treeResources.ClientSize.Height - (TreeScrollbarMargin * 2);
+
+            if (height < 30 || x < 0)
+            {
+                _treeScrollTrack.Visible = false;
+                return;
+            }
+
+            _treeScrollTrack.Bounds = new Rectangle(x, y, TreeScrollbarWidth, height);
+            _treeScrollTrack.Visible = true;
+            _treeScrollTrack.BringToFront();
+
+            if (_treeScrollTrack.Parent == treeResources)
+            {
+                treeResources.Controls.SetChildIndex(_treeScrollTrack, 0);
+            }
+        }
+
+        private void HideNativeTreeScrollbars()
+        {
+            _treeScrollbarHider?.HideNow();
+        }
+
+        private void UpdateTreeScrollbar()
+        {
+            if (_treeScrollTrack == null || _treeScrollThumb == null) return;
+
+            HideNativeTreeScrollbars();
+
+            List<TreeNode> visibleNodes = GetVisibleTreeNodes();
+            int totalVisibleNodes = visibleNodes.Count;
+            int visibleCapacity = GetTreeVisibleCapacity();
+
+            if (totalVisibleNodes <= 0)
+            {
+                _treeScrollTrack.Visible = false;
+                return;
+            }
+
+            bool needsScrollbar = totalVisibleNodes > visibleCapacity;
+
+            _treeScrollTrack.Visible = true;
+            _treeScrollTrack.Enabled = true;
+            _treeScrollTrack.BringToFront();
+
+            if (_treeScrollTrack.Parent == treeResources)
+            {
+                treeResources.Controls.SetChildIndex(_treeScrollTrack, 0);
+            }
+
+            int trackHeight = Math.Max(1, _treeScrollTrack.Height);
+
+            if (!needsScrollbar)
+            {
+                _treeScrollThumb.FillColor = Color.FromArgb(71, 85, 105);
+                _treeScrollThumb.HoverColor = Color.FromArgb(100, 116, 139);
+                _treeScrollThumb.Bounds = new Rectangle(0, 0, TreeScrollbarWidth, trackHeight);
+                _treeScrollThumb.Visible = true;
+                _treeScrollThumb.BringToFront();
+                _treeScrollThumb.Invalidate();
+                _treeScrollTrack.Invalidate();
+                return;
+            }
+
+            _treeScrollThumb.FillColor = Color.FromArgb(249, 115, 22);
+            _treeScrollThumb.HoverColor = Color.FromArgb(251, 146, 60);
+
+            int thumbHeight = Math.Max(
+                TreeScrollbarMinThumbHeight,
+                (int)Math.Round((double)visibleCapacity / totalVisibleNodes * trackHeight)
+            );
+
+            thumbHeight = Math.Min(trackHeight, thumbHeight);
+
+            int maxThumbTop = Math.Max(0, trackHeight - thumbHeight);
+            int maxTopIndex = Math.Max(1, totalVisibleNodes - visibleCapacity);
+
+            int topIndex = 0;
+
+            if (treeResources.TopNode != null)
+            {
+                topIndex = visibleNodes.IndexOf(treeResources.TopNode);
+                if (topIndex < 0) topIndex = 0;
+            }
+
+            topIndex = ClampInt(topIndex, 0, maxTopIndex);
+
+            int thumbTop = maxTopIndex > 0
+                ? (int)Math.Round((double)topIndex / maxTopIndex * maxThumbTop)
+                : 0;
+
+            _treeScrollThumb.Bounds = new Rectangle(0, thumbTop, TreeScrollbarWidth, thumbHeight);
+            _treeScrollThumb.Visible = true;
+            _treeScrollThumb.BringToFront();
+
+            _treeScrollThumb.Invalidate();
+            _treeScrollTrack.Invalidate();
+        }
+
+        private List<TreeNode> GetVisibleTreeNodes()
+        {
+            var nodes = new List<TreeNode>();
+
+            foreach (TreeNode node in treeResources.Nodes)
+            {
+                AddVisibleTreeNode(node, nodes);
+            }
+
+            return nodes;
+        }
+
+        private void AddVisibleTreeNode(TreeNode node, List<TreeNode> nodes)
+        {
+            if (node == null) return;
+
+            nodes.Add(node);
+
+            if (!node.IsExpanded) return;
+
+            foreach (TreeNode child in node.Nodes)
+            {
+                AddVisibleTreeNode(child, nodes);
+            }
+        }
+
+        private int GetTreeVisibleCapacity()
+        {
+            int itemHeight = Math.Max(1, treeResources.ItemHeight);
+            int usableHeight = Math.Max(1, treeResources.ClientSize.Height - (TreeScrollbarMargin * 2));
+
+            return Math.Max(1, usableHeight / itemHeight);
+        }
+
+        private void ScrollTreeBy(int delta)
+        {
+            List<TreeNode> visibleNodes = GetVisibleTreeNodes();
+            if (visibleNodes.Count == 0) return;
+
+            int visibleCapacity = GetTreeVisibleCapacity();
+            int maxTopIndex = Math.Max(0, visibleNodes.Count - visibleCapacity);
+
+            int currentIndex = 0;
+            if (treeResources.TopNode != null)
+            {
+                currentIndex = visibleNodes.IndexOf(treeResources.TopNode);
+                if (currentIndex < 0) currentIndex = 0;
+            }
+
+            int newIndex = ClampInt(currentIndex + delta, 0, maxTopIndex);
+
+            if (newIndex >= 0 && newIndex < visibleNodes.Count)
+            {
+                treeResources.TopNode = visibleNodes[newIndex];
+            }
+
+            HideNativeTreeScrollbars();
+            UpdateTreeScrollbar();
+        }
+
+        private void ScrollTreeToThumbTop(int thumbTop)
+        {
+            if (_treeScrollTrack == null || _treeScrollThumb == null) return;
+
+            List<TreeNode> visibleNodes = GetVisibleTreeNodes();
+            if (visibleNodes.Count == 0) return;
+
+            int visibleCapacity = GetTreeVisibleCapacity();
+            int maxTopIndex = Math.Max(0, visibleNodes.Count - visibleCapacity);
+
+            int maxThumbTop = Math.Max(1, _treeScrollTrack.Height - _treeScrollThumb.Height);
+            int cleanThumbTop = ClampInt(thumbTop, 0, maxThumbTop);
+
+            double ratio = (double)cleanThumbTop / maxThumbTop;
+            int targetIndex = ClampInt((int)Math.Round(ratio * maxTopIndex), 0, maxTopIndex);
+
+            if (targetIndex >= 0 && targetIndex < visibleNodes.Count)
+            {
+                treeResources.TopNode = visibleNodes[targetIndex];
+            }
+
+            HideNativeTreeScrollbars();
+            UpdateTreeScrollbar();
+        }
+
+        private void treeResources_MouseWheel(object sender, MouseEventArgs e)
+        {
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+            }));
+        }
+
+        private void TreeScrollbar_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (e.Delta < 0)
+            {
+                ScrollTreeBy(3);
+            }
+            else if (e.Delta > 0)
+            {
+                ScrollTreeBy(-3);
+            }
+        }
+
+        private void treeResources_KeyDown(object sender, KeyEventArgs e)
+        {
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+            }));
+        }
+
+        private void treeResources_AfterExpandCollapse(object sender, TreeViewEventArgs e)
+        {
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+            }));
+        }
+
+        private void treeResources_ResizeOrMove(object sender, EventArgs e)
+        {
+            PositionTreeScrollbar();
+            HideNativeTreeScrollbars();
+            UpdateTreeScrollbar();
+        }
+
+        private void TreeScrollbarTrack_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (_treeScrollThumb == null) return;
+
+            int visibleCapacity = GetTreeVisibleCapacity();
+
+            if (e.Y < _treeScrollThumb.Top)
+            {
+                ScrollTreeBy(-visibleCapacity);
+            }
+            else if (e.Y > _treeScrollThumb.Bottom)
+            {
+                ScrollTreeBy(visibleCapacity);
+            }
+        }
+
+        private void TreeScrollbarThumb_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (_treeScrollThumb == null) return;
+
+            _treeScrollDragging = true;
+            _treeScrollDragOffsetY = e.Y;
+            _treeScrollThumb.Capture = true;
+            _treeScrollThumb.FillColor = Color.FromArgb(234, 88, 12);
+            _treeScrollThumb.Invalidate();
+        }
+
+        private void TreeScrollbar_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_treeScrollDragging || _treeScrollTrack == null || _treeScrollThumb == null) return;
+
+            Point mouseInTrack;
+
+            if (sender == _treeScrollThumb)
+            {
+                mouseInTrack = _treeScrollTrack.PointToClient(_treeScrollThumb.PointToScreen(e.Location));
+            }
+            else
+            {
+                mouseInTrack = e.Location;
+            }
+
+            int newThumbTop = mouseInTrack.Y - _treeScrollDragOffsetY;
+            ScrollTreeToThumbTop(newThumbTop);
+        }
+
+        private void TreeScrollbar_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (_treeScrollThumb == null) return;
+
+            _treeScrollDragging = false;
+            _treeScrollThumb.Capture = false;
+
+            UpdateTreeScrollbar();
+        }
+
+        private void treeResources_DrawNode(object sender, DrawTreeNodeEventArgs e)
+        {
+            if (e.Node == null) return;
+
+            bool isSelected = (e.State & TreeNodeStates.Selected) == TreeNodeStates.Selected;
+            var tag = e.Node.Tag as ResourceTag;
+
+            Color backColor = isSelected ? _treeSelectedBackColor : _treeBackColor;
+            Color textColor;
+
+            if (isSelected)
+            {
+                textColor = _treeSelectedTextColor;
+            }
+            else if (e.Node.Level == 0)
+            {
+                textColor = _treeAccentColor;
+            }
+            else if (e.Node.Nodes.Count > 0)
+            {
+                textColor = _treeGroupTextColor;
+            }
+            else
+            {
+                textColor = _treeMutedTextColor;
+            }
+
+            int rightPadding = TreeScrollbarWidth + TreeScrollbarMargin + 10;
+
+            Rectangle backgroundBounds = new Rectangle(
+                e.Bounds.Left - 4,
+                e.Bounds.Top,
+                Math.Max(1, treeResources.ClientSize.Width - e.Bounds.Left - rightPadding + 4),
+                e.Bounds.Height
+            );
+
+            using (SolidBrush backgroundBrush = new SolidBrush(backColor))
+            {
+                e.Graphics.FillRectangle(backgroundBrush, backgroundBounds);
+            }
+
+            bool isVmOrLxc = tag != null && (tag.Type == "vm" || tag.Type == "lxc");
+
+            int dotSize = 10;
+            int dotSpacing = 7;
+            int textLeft = e.Bounds.Left;
+
+            if (isVmOrLxc)
+            {
+                bool isRunning = false;
+
+                if (tag.Type == "vm" && tag.Data is PveVm vm)
+                {
+                    isRunning = string.Equals(vm.Status, "running", StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (tag.Type == "lxc" && tag.Data is PveLxc lxc)
+                {
+                    isRunning = string.Equals(lxc.Status, "running", StringComparison.OrdinalIgnoreCase);
+                }
+
+                Color dotColor = isRunning ? _statusRunningColor : _statusStoppedColor;
+
+                int dotX = e.Bounds.Left;
+                int dotY = e.Bounds.Top + ((e.Bounds.Height - dotSize) / 2);
+
+                using (SolidBrush dotBrush = new SolidBrush(dotColor))
+                using (Pen dotBorderPen = new Pen(Color.FromArgb(15, 23, 42), 1))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.FillEllipse(dotBrush, dotX, dotY, dotSize, dotSize);
+                    e.Graphics.DrawEllipse(dotBorderPen, dotX, dotY, dotSize, dotSize);
+                    e.Graphics.SmoothingMode = SmoothingMode.None;
+                }
+
+                textLeft = e.Bounds.Left + dotSize + dotSpacing;
+            }
+
+            Rectangle textBounds = new Rectangle(
+                textLeft,
+                e.Bounds.Top,
+                Math.Max(1, treeResources.ClientSize.Width - textLeft - rightPadding),
+                e.Bounds.Height
+            );
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.Node.Text,
+                treeResources.Font,
+                textBounds,
+                textColor,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis
+            );
         }
 
         private void SelectDatacenterNode()
@@ -41,6 +563,13 @@ namespace ProxmoxVEGui
             if (treeResources.Nodes.Count > 0)
             {
                 treeResources.SelectedNode = treeResources.Nodes[0];
+
+                BeginInvoke(new Action(() =>
+                {
+                    PositionTreeScrollbar();
+                    HideNativeTreeScrollbars();
+                    UpdateTreeScrollbar();
+                }));
             }
         }
 
@@ -48,17 +577,16 @@ namespace ProxmoxVEGui
         {
             lblSelectedResource.Text = "Loading cluster information...";
             treeResources.BeginUpdate();
-            
-            // Save scroll/expand states if possible, or just rebuild and select
+
             treeResources.Nodes.Clear();
 
             var datacenterNode = new TreeNode("🌐 Datacenter")
             {
-                Tag = new ResourceTag { Type = "datacenter", Name = "Datacenter" }
+                Tag = new ResourceTag { Type = "datacenter", Name = "Datacenter" },
+                ToolTipText = "Datacenter"
             };
             treeResources.Nodes.Add(datacenterNode);
 
-            // Fetch cluster nodes
             var apiNodes = await _client.GetNodesAsync();
             _cachedNodes = apiNodes;
 
@@ -77,58 +605,59 @@ namespace ProxmoxVEGui
                 var isOnline = node.Status == "online";
                 string statusDot = isOnline ? "🟢" : "🔴";
                 string nodeDisplayName = $"{statusDot} 🗄️ {node.Node}";
-                
+
                 var nodeTreeNode = new TreeNode(nodeDisplayName)
                 {
-                    Tag = new ResourceTag { Type = "node", NodeName = node.Node, Name = node.Node, Data = node }
+                    Tag = new ResourceTag { Type = "node", NodeName = node.Node, Name = node.Node, Data = node },
+                    ToolTipText = nodeDisplayName
                 };
                 datacenterNode.Nodes.Add(nodeTreeNode);
 
                 if (isOnline)
                 {
-                    // Fetch VMs
                     var vms = await _client.GetVmsAsync(node.Node);
                     var vmsGroupNode = new TreeNode("🖥️ Virtual Machines")
                     {
-                        Tag = new ResourceTag { Type = "group_vm", NodeName = node.Node }
+                        Tag = new ResourceTag { Type = "group_vm", NodeName = node.Node },
+                        ToolTipText = "Virtual Machines"
                     };
                     nodeTreeNode.Nodes.Add(vmsGroupNode);
 
                     foreach (var vm in vms)
                     {
-                        if (vm.IsTemplate) continue; // Skip templates for clarity, or show them with template icon
+                        if (vm.IsTemplate) continue;
 
-                        string vmStatusDot = vm.Status == "running" ? "🟢" : "🔴";
-                        string vmDisplay = $"{vmStatusDot} 🖥️ [{vm.VmId}] {vm.Name}";
+                        string vmDisplay = $"🖥️ [{vm.VmId}] {vm.Name}";
                         vmsGroupNode.Nodes.Add(new TreeNode(vmDisplay)
                         {
-                            Tag = new ResourceTag { Type = "vm", NodeName = node.Node, VmId = vm.VmId, Name = vm.Name, Data = vm }
+                            Tag = new ResourceTag { Type = "vm", NodeName = node.Node, VmId = vm.VmId, Name = vm.Name, Data = vm },
+                            ToolTipText = vmDisplay
                         });
                     }
 
-                    // Fetch LXCs
                     var lxcs = await _client.GetLxcsAsync(node.Node);
                     var lxcsGroupNode = new TreeNode("📦 Containers (LXC)")
                     {
-                        Tag = new ResourceTag { Type = "group_lxc", NodeName = node.Node }
+                        Tag = new ResourceTag { Type = "group_lxc", NodeName = node.Node },
+                        ToolTipText = "Containers (LXC)"
                     };
                     nodeTreeNode.Nodes.Add(lxcsGroupNode);
 
                     foreach (var lxc in lxcs)
                     {
-                        string lxcStatusDot = lxc.Status == "running" ? "🟢" : "🔴";
-                        string lxcDisplay = $"{lxcStatusDot} 📦 [{lxc.VmId}] {lxc.Name}";
+                        string lxcDisplay = $"📦 [{lxc.VmId}] {lxc.Name}";
                         lxcsGroupNode.Nodes.Add(new TreeNode(lxcDisplay)
                         {
-                            Tag = new ResourceTag { Type = "lxc", NodeName = node.Node, VmId = lxc.VmId, Name = lxc.Name, Data = lxc }
+                            Tag = new ResourceTag { Type = "lxc", NodeName = node.Node, VmId = lxc.VmId, Name = lxc.Name, Data = lxc },
+                            ToolTipText = lxcDisplay
                         });
                     }
 
-                    // Fetch Storages
                     var storages = await _client.GetStorageAsync(node.Node);
                     var storageGroupNode = new TreeNode("💾 Storage Pools")
                     {
-                        Tag = new ResourceTag { Type = "group_storage", NodeName = node.Node }
+                        Tag = new ResourceTag { Type = "group_storage", NodeName = node.Node },
+                        ToolTipText = "Storage Pools"
                     };
                     nodeTreeNode.Nodes.Add(storageGroupNode);
 
@@ -138,7 +667,8 @@ namespace ProxmoxVEGui
                         string storeDisplay = $"{storeStatusDot} 💾 {store.Storage} ({store.Type})";
                         storageGroupNode.Nodes.Add(new TreeNode(storeDisplay)
                         {
-                            Tag = new ResourceTag { Type = "storage", NodeName = node.Node, Name = store.Storage, Data = store }
+                            Tag = new ResourceTag { Type = "storage", NodeName = node.Node, Name = store.Storage, Data = store },
+                            ToolTipText = storeDisplay
                         });
                     }
                 }
@@ -146,18 +676,32 @@ namespace ProxmoxVEGui
 
             treeResources.ExpandAll();
             treeResources.EndUpdate();
-            
+
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+                treeResources.Invalidate();
+            }));
+
             lblSelectedResource.Text = "Cluster ready.";
-            
-            // Re-sync task logs
+
             await RefreshTasksLogAsync();
-            
-            // Refresh details of selected item
+
             if (treeResources.SelectedNode != null)
             {
                 var tag = treeResources.SelectedNode.Tag as ResourceTag;
                 UpdateUIForSelectedResource(tag);
             }
+
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+                treeResources.Invalidate();
+            }));
         }
 
         private async Task RefreshTasksLogAsync()
@@ -170,22 +714,21 @@ namespace ProxmoxVEGui
             {
                 string timeStr = DateTimeOffset.FromUnixTimeSeconds(task.StartTime).LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss");
                 string desc = $"{task.Type.ToUpper()} {task.Id}";
-                
+
                 int index = gridTasks.Rows.Add(timeStr, task.Node, task.User, desc, task.Status);
                 var row = gridTasks.Rows[index];
 
-                // Color row cells depending on task status
                 if (task.Status == "OK")
                 {
-                    row.Cells[4].Style.ForeColor = Color.FromArgb(34, 197, 94); // Neon Green
+                    row.Cells[4].Style.ForeColor = Color.FromArgb(34, 197, 94);
                 }
                 else if (task.Status == "RUNNING")
                 {
-                    row.Cells[4].Style.ForeColor = Color.FromArgb(59, 130, 246); // Blue
+                    row.Cells[4].Style.ForeColor = Color.FromArgb(59, 130, 246);
                 }
                 else
                 {
-                    row.Cells[4].Style.ForeColor = Color.FromArgb(239, 68, 68); // Neon Red (Error)
+                    row.Cells[4].Style.ForeColor = Color.FromArgb(239, 68, 68);
                 }
             }
         }
@@ -197,11 +740,20 @@ namespace ProxmoxVEGui
 
             _lastSelectedKey = $"{tag.Type}_{tag.NodeName}_{tag.VmId}";
             UpdateUIForSelectedResource(tag);
+
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+                treeResources.Invalidate();
+            }));
         }
 
         private void UpdateUIForSelectedResource(ResourceTag tag)
         {
             if (tag == null) return;
+
             lblSelectedResource.Text = tag.Name ?? "Resource";
             UpdateActionButtonsState(tag);
 
@@ -221,7 +773,7 @@ namespace ProxmoxVEGui
                 lblResourceID.Text = "Total Nodes: " + _cachedNodes.Count;
                 lblSpecsCores.Text = "Total CPU Cores: " + _cachedNodes.Sum(n => n.MaxCpu);
                 lblSpecsMemory.Text = "Total Memory: " + FormatBytes(_cachedNodes.Sum(n => n.MaxMem));
-                
+
                 long totalUptime = _cachedNodes.Count > 0 ? _cachedNodes.Max(n => n.Uptime) : 0;
                 lblUptime.Text = "Cluster Max Uptime: " + FormatUptime(totalUptime);
                 lblResourceStatus.Text = $"Nodes: {_cachedNodes.Count(n => n.Status == "online")} / {_cachedNodes.Count} Online";
@@ -231,7 +783,6 @@ namespace ProxmoxVEGui
                 lblDetailIp.Text = "IP Addresses: Cluster Subnet";
                 lblDetailDisk.Text = "Cluster Disk: " + FormatBytes(_cachedNodes.Sum(n => n.MaxDisk));
 
-                // Aggregate metrics
                 long usedMem = _cachedNodes.Sum(n => n.Mem);
                 long totalMem = _cachedNodes.Sum(n => n.MaxMem);
                 double avgCpu = _cachedNodes.Count > 0 ? _cachedNodes.Average(n => n.Cpu) : 0;
@@ -288,7 +839,6 @@ namespace ProxmoxVEGui
                     chartCpu.AddValue(vm.Cpu * 100);
                     chartRam.AddValue(vm.MaxMem > 0 ? ((double)vm.Mem / vm.MaxMem) * 100 : 0);
 
-                    // Resolve VM IP Address asynchronously
                     FetchVmIpAddressAsync(tag.NodeName, vm.VmId);
                 }
 
@@ -316,7 +866,6 @@ namespace ProxmoxVEGui
                     chartCpu.AddValue(lxc.Cpu * 100);
                     chartRam.AddValue(lxc.MaxMem > 0 ? ((double)lxc.Mem / lxc.MaxMem) * 100 : 0);
 
-                    // Resolve LXC IP Address asynchronously
                     FetchLxcIpAddressAsync(tag.NodeName, lxc.VmId);
                 }
 
@@ -350,7 +899,6 @@ namespace ProxmoxVEGui
                 SwitchToTab("dashboard");
             }
 
-            // Reload VNC console if visible
             if (panelConsole.Visible)
             {
                 LoadConsoleForSelectedResource();
@@ -360,7 +908,7 @@ namespace ProxmoxVEGui
         private async void FetchVmIpAddressAsync(string node, int vmid)
         {
             string ip = await _client.GetVmIpAsync(node, vmid);
-            // Verify user hasn't switched selection in the meantime
+
             if (treeResources.SelectedNode != null)
             {
                 var tag = treeResources.SelectedNode.Tag as ResourceTag;
@@ -374,6 +922,7 @@ namespace ProxmoxVEGui
         private async void FetchLxcIpAddressAsync(string node, int vmid)
         {
             string ip = await _client.GetLxcIpAsync(node, vmid);
+
             if (treeResources.SelectedNode != null)
             {
                 var tag = treeResources.SelectedNode.Tag as ResourceTag;
@@ -407,6 +956,7 @@ namespace ProxmoxVEGui
             }
 
             btnDelete.Enabled = true;
+
             string status = "";
             if (tag.Type == "vm" && tag.Data is PveVm vm) status = vm.Status;
             if (tag.Type == "lxc" && tag.Data is PveLxc lxc) status = lxc.Status;
@@ -458,6 +1008,14 @@ namespace ProxmoxVEGui
                     LoadConfigForSelectedResource();
                 }
             }
+
+            BeginInvoke(new Action(() =>
+            {
+                PositionTreeScrollbar();
+                HideNativeTreeScrollbars();
+                UpdateTreeScrollbar();
+                treeResources.Invalidate();
+            }));
         }
 
         private void ResetTabButtonColors()
@@ -534,7 +1092,7 @@ namespace ProxmoxVEGui
                 webViewConsole.CoreWebView2.CookieManager.AddOrUpdateCookie(cookie);
 
                 webViewConsole.CoreWebView2.Navigate(consoleUrl);
-                
+
                 lblConsoleWarning.Visible = false;
                 webViewConsole.Visible = true;
             }
@@ -565,6 +1123,7 @@ namespace ProxmoxVEGui
 
             lblSelectedResource.Text = $"Executing power action ({action})...";
             bool success = await _client.VMActionAsync(tag.NodeName, tag.VmId, tag.Type == "vm" ? "qemu" : "lxc", action);
+
             if (success)
             {
                 MessageBox.Show($"Command '{action}' sent successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -594,10 +1153,12 @@ namespace ProxmoxVEGui
             if (tag == null || (tag.Type != "vm" && tag.Type != "lxc")) return;
 
             var confirm = MessageBox.Show($"Are you sure you want to permanently delete [{tag.VmId}] {tag.Name}?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
             if (confirm == DialogResult.Yes)
             {
                 lblSelectedResource.Text = "Deleting resource...";
                 bool success = await _client.DeleteResourceAsync(tag.NodeName, tag.VmId, tag.Type == "vm" ? "qemu" : "lxc");
+
                 if (success)
                 {
                     MessageBox.Show("Resource deleted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -629,6 +1190,7 @@ namespace ProxmoxVEGui
         private void OpenCreateDialog(string type)
         {
             var onlineNodes = _cachedNodes.Where(n => n.Status == "online").Select(n => n.Node).ToList();
+
             if (onlineNodes.Count == 0)
             {
                 MessageBox.Show("No online nodes available to host new resources.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -637,10 +1199,12 @@ namespace ProxmoxVEGui
 
             int nextId = 100;
             var allResourceIds = new HashSet<int>();
+
             foreach (var node in treeResources.Nodes[0].Nodes)
             {
                 var tn = node as TreeNode;
                 if (tn == null) continue;
+
                 foreach (TreeNode group in tn.Nodes)
                 {
                     foreach (TreeNode resource in group.Nodes)
@@ -663,19 +1227,15 @@ namespace ProxmoxVEGui
             dialog.ShowDialog();
         }
 
-        // Live telemetry refresh ticker (Updates charts, stats, and task list without closing tree branches)
         private async void timerRefresh_Tick(object sender, EventArgs e)
         {
             try
             {
-                // Refresh task log
                 await RefreshTasksLogAsync();
 
-                // Refresh nodes data
                 var apiNodes = await _client.GetNodesAsync();
                 _cachedNodes = apiNodes;
 
-                // Sync current selected node details
                 if (treeResources.SelectedNode != null)
                 {
                     var tag = treeResources.SelectedNode.Tag as ResourceTag;
@@ -714,6 +1274,7 @@ namespace ProxmoxVEGui
                             chartCpu.AddValue(freshVm.Cpu * 100);
                             chartRam.AddValue(freshVm.MaxMem > 0 ? ((double)freshVm.Mem / freshVm.MaxMem) * 100 : 0);
                             UpdateActionButtonsState(tag);
+                            treeResources.Invalidate();
                         }
                     }
                     else if (tag.Type == "lxc")
@@ -728,37 +1289,56 @@ namespace ProxmoxVEGui
                             chartCpu.AddValue(freshLxc.Cpu * 100);
                             chartRam.AddValue(freshLxc.MaxMem > 0 ? ((double)freshLxc.Mem / freshLxc.MaxMem) * 100 : 0);
                             UpdateActionButtonsState(tag);
+                            treeResources.Invalidate();
                         }
                     }
                 }
+
+                BeginInvoke(new Action(() =>
+                {
+                    PositionTreeScrollbar();
+                    HideNativeTreeScrollbars();
+                    UpdateTreeScrollbar();
+                    treeResources.Invalidate();
+                }));
             }
             catch
             {
-                // Silence errors during background refreshes to keep UI running smoothly
             }
         }
 
-        // Helpers
+        private static int ClampInt(int value, int min, int max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
         public static string FormatBytes(long bytes)
         {
             string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
             int counter = 0;
             decimal number = bytes;
-            while (Math.Round(number / 1024) >= 1)
+
+            while (Math.Round(number / 1024) >= 1 && counter < suffixes.Length - 1)
             {
                 number /= 1024;
                 counter++;
             }
+
             return string.Format("{0:n1} {1}", number, suffixes[counter]);
         }
 
         public static string FormatUptime(long seconds)
         {
             var time = TimeSpan.FromSeconds(seconds);
+
             if (time.TotalDays >= 1)
                 return string.Format("{0}d {1}h {2}m", (int)time.TotalDays, time.Hours, time.Minutes);
+
             if (time.TotalHours >= 1)
                 return string.Format("{0}h {1}m", time.Hours, time.Minutes);
+
             return string.Format("{0}m {1}s", time.Minutes, time.Seconds);
         }
     }
@@ -770,5 +1350,139 @@ namespace ProxmoxVEGui
         public int VmId { get; set; }
         public string Name { get; set; }
         public object Data { get; set; }
+    }
+
+    public class ModernScrollbarPart : Panel
+    {
+        private bool _hover;
+
+        public Color FillColor { get; set; } = Color.FromArgb(249, 115, 22);
+        public Color HoverColor { get; set; } = Color.FromArgb(251, 146, 60);
+        public int Radius { get; set; } = 4;
+
+        public ModernScrollbarPart()
+        {
+            SetStyle(
+                ControlStyles.AllPaintingInWmPaint |
+                ControlStyles.UserPaint |
+                ControlStyles.OptimizedDoubleBuffer |
+                ControlStyles.ResizeRedraw |
+                ControlStyles.SupportsTransparentBackColor,
+                true
+            );
+
+            BackColor = Color.Transparent;
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            _hover = true;
+            Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            _hover = false;
+            Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            Rectangle rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            if (rect.Width <= 0 || rect.Height <= 0) return;
+
+            using (GraphicsPath path = CreateRoundedRectanglePath(rect, Radius))
+            using (SolidBrush brush = new SolidBrush(_hover ? HoverColor : FillColor))
+            {
+                e.Graphics.FillPath(brush, path);
+            }
+        }
+
+        private GraphicsPath CreateRoundedRectanglePath(Rectangle rect, int radius)
+        {
+            int diameter = Math.Max(1, radius * 2);
+            GraphicsPath path = new GraphicsPath();
+
+            path.AddArc(rect.Left, rect.Top, diameter, diameter, 180, 90);
+            path.AddArc(rect.Right - diameter, rect.Top, diameter, diameter, 270, 90);
+            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(rect.Left, rect.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+
+            return path;
+        }
+    }
+
+    public class TreeViewNativeScrollbarHider : NativeWindow
+    {
+        private TreeView _treeView;
+
+        private const int SB_BOTH = 3;
+        private const int WM_PAINT = 0x000F;
+        private const int WM_SIZE = 0x0005;
+        private const int WM_NCPAINT = 0x0085;
+        private const int WM_VSCROLL = 0x0115;
+        private const int WM_HSCROLL = 0x0114;
+        private const int WM_MOUSEWHEEL = 0x020A;
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowScrollBar(IntPtr hWnd, int wBar, bool bShow);
+
+        public void Attach(TreeView treeView)
+        {
+            _treeView = treeView;
+
+            if (_treeView == null) return;
+
+            _treeView.HandleCreated += TreeView_HandleCreated;
+            _treeView.HandleDestroyed += TreeView_HandleDestroyed;
+
+            if (_treeView.IsHandleCreated)
+            {
+                AssignHandle(_treeView.Handle);
+                HideNow();
+            }
+        }
+
+        public void HideNow()
+        {
+            if (_treeView == null || _treeView.IsDisposed || !_treeView.IsHandleCreated) return;
+
+            ShowScrollBar(_treeView.Handle, SB_BOTH, false);
+        }
+
+        private void TreeView_HandleCreated(object sender, EventArgs e)
+        {
+            if (_treeView == null) return;
+
+            AssignHandle(_treeView.Handle);
+            HideNow();
+        }
+
+        private void TreeView_HandleDestroyed(object sender, EventArgs e)
+        {
+            ReleaseHandle();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+
+            if (m.Msg == WM_PAINT ||
+                m.Msg == WM_SIZE ||
+                m.Msg == WM_NCPAINT ||
+                m.Msg == WM_VSCROLL ||
+                m.Msg == WM_HSCROLL ||
+                m.Msg == WM_MOUSEWHEEL)
+            {
+                HideNow();
+            }
+        }
     }
 }
