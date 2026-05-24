@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Forms;
 using System.Xml.Serialization;
 
@@ -19,6 +21,14 @@ namespace ProxmoxVEGui
         private ProfileActionButton btnSaveProfile;
         private ProfileActionButton btnLoadProfile;
         private ProfileActionButton btnDeleteProfile;
+
+        private CheckBox chkStayLoggedIn;
+        private RememberLoginState rememberLoginState;
+        private bool rememberLoginApplied = false;
+        private bool autoLoginStarted = false;
+        private bool suppressRememberCheckboxEvent = false;
+
+        private static readonly byte[] RememberEntropy = Encoding.UTF8.GetBytes("ProxmoxVEGui.RememberLogin.v1");
 
         private string ProfilesFolder
         {
@@ -39,17 +49,30 @@ namespace ProxmoxVEGui
             }
         }
 
+        private string RememberLoginFile
+        {
+            get
+            {
+                return Path.Combine(ProfilesFolder, "remember_login.xml");
+            }
+        }
+
         public LoginForm()
         {
             InitializeComponent();
 
             ApplyApplicationIcon();
 
+            InitializeStayLoggedInUi();
             InitializeSavedProfilesUi();
+
             LoadSavedProfilesFromDisk();
+            LoadRememberLoginFromDisk();
+
             RefreshSavedProfilesList();
 
             this.Shown += LoginForm_Shown_CustomProfiles;
+            this.Shown += LoginForm_Shown_RememberLogin;
             this.Resize += LoginForm_Resize_CustomProfiles;
         }
 
@@ -81,7 +104,12 @@ namespace ProxmoxVEGui
 
         private void LoginForm_Load(object sender, EventArgs e)
         {
-            cmbRealm.SelectedIndex = 0;
+            if (cmbRealm.SelectedIndex < 0)
+            {
+                cmbRealm.SelectedIndex = 0;
+            }
+
+            ApplyRememberLoginToForm(false);
         }
 
         private void LoginForm_Shown_CustomProfiles(object sender, EventArgs e)
@@ -89,9 +117,125 @@ namespace ProxmoxVEGui
             PositionSavedProfilesPanel();
         }
 
+        private void LoginForm_Shown_RememberLogin(object sender, EventArgs e)
+        {
+            if (autoLoginStarted) return;
+            if (!rememberLoginApplied) return;
+            if (chkStayLoggedIn == null || !chkStayLoggedIn.Checked) return;
+            if (string.IsNullOrWhiteSpace(txtHost.Text)) return;
+            if (string.IsNullOrWhiteSpace(txtPort.Text)) return;
+            if (string.IsNullOrWhiteSpace(txtUsername.Text)) return;
+            if (string.IsNullOrWhiteSpace(txtPassword.Text)) return;
+
+            autoLoginStarted = true;
+
+            BeginInvoke(new Action(() =>
+            {
+                btnLogin_Click(btnLogin, EventArgs.Empty);
+            }));
+        }
+
         private void LoginForm_Resize_CustomProfiles(object sender, EventArgs e)
         {
             PositionSavedProfilesPanel();
+        }
+
+        private void InitializeStayLoggedInUi()
+        {
+            chkStayLoggedIn = new CheckBox();
+            chkStayLoggedIn.AutoSize = chkIgnoreSsl != null ? chkIgnoreSsl.AutoSize : true;
+            chkStayLoggedIn.Text = "Angemeldet bleiben";
+            chkStayLoggedIn.Cursor = Cursors.Hand;
+            chkStayLoggedIn.CheckedChanged += ChkStayLoggedIn_CheckedChanged;
+
+            Control parent = this;
+
+            if (chkIgnoreSsl != null && chkIgnoreSsl.Parent != null)
+            {
+                parent = chkIgnoreSsl.Parent;
+
+                chkStayLoggedIn.Font = chkIgnoreSsl.Font;
+                chkStayLoggedIn.ForeColor = chkIgnoreSsl.ForeColor;
+                chkStayLoggedIn.BackColor = chkIgnoreSsl.BackColor;
+                chkStayLoggedIn.FlatStyle = chkIgnoreSsl.FlatStyle;
+                chkStayLoggedIn.UseVisualStyleBackColor = chkIgnoreSsl.UseVisualStyleBackColor;
+                chkStayLoggedIn.Padding = chkIgnoreSsl.Padding;
+                chkStayLoggedIn.Margin = chkIgnoreSsl.Margin;
+                chkStayLoggedIn.TextAlign = chkIgnoreSsl.TextAlign;
+                chkStayLoggedIn.CheckAlign = chkIgnoreSsl.CheckAlign;
+                chkStayLoggedIn.Height = chkIgnoreSsl.Height;
+
+                chkStayLoggedIn.FlatAppearance.BorderSize = chkIgnoreSsl.FlatAppearance.BorderSize;
+                chkStayLoggedIn.FlatAppearance.BorderColor = chkIgnoreSsl.FlatAppearance.BorderColor;
+                chkStayLoggedIn.FlatAppearance.CheckedBackColor = chkIgnoreSsl.FlatAppearance.CheckedBackColor;
+                chkStayLoggedIn.FlatAppearance.MouseDownBackColor = chkIgnoreSsl.FlatAppearance.MouseDownBackColor;
+                chkStayLoggedIn.FlatAppearance.MouseOverBackColor = chkIgnoreSsl.FlatAppearance.MouseOverBackColor;
+            }
+            else if (panelCard != null)
+            {
+                parent = panelCard;
+
+                chkStayLoggedIn.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+                chkStayLoggedIn.ForeColor = Color.FromArgb(229, 231, 235);
+                chkStayLoggedIn.BackColor = Color.Transparent;
+                chkStayLoggedIn.FlatStyle = FlatStyle.Flat;
+            }
+
+            parent.Controls.Add(chkStayLoggedIn);
+
+            if (chkIgnoreSsl != null && chkIgnoreSsl.Parent == parent)
+            {
+                chkStayLoggedIn.Location = new Point(
+                    chkIgnoreSsl.Right + 24,
+                    chkIgnoreSsl.Top
+                );
+            }
+            else
+            {
+                chkStayLoggedIn.Location = new Point(220, 390);
+            }
+
+            chkStayLoggedIn.BringToFront();
+        }
+        private void MoveLoginControlsDownForRememberCheckbox(Control parent)
+        {
+            int requiredTop = chkStayLoggedIn.Bottom + 12;
+            int moveBy = 32;
+
+            if (btnLogin != null && btnLogin.Parent == parent && btnLogin.Top < requiredTop)
+            {
+                btnLogin.Top += moveBy;
+            }
+
+            if (lblStatus != null && lblStatus.Parent == parent && lblStatus.Top < requiredTop)
+            {
+                lblStatus.Top += moveBy;
+            }
+
+            if (panelCard != null && parent == panelCard)
+            {
+                int neededHeight = 0;
+
+                foreach (Control control in panelCard.Controls)
+                {
+                    neededHeight = Math.Max(neededHeight, control.Bottom + 24);
+                }
+
+                if (panelCard.Height < neededHeight)
+                {
+                    panelCard.Height = neededHeight;
+                }
+            }
+        }
+
+        private void ChkStayLoggedIn_CheckedChanged(object sender, EventArgs e)
+        {
+            if (suppressRememberCheckboxEvent) return;
+
+            if (chkStayLoggedIn != null && !chkStayLoggedIn.Checked)
+            {
+                DeleteRememberLoginFromDisk(false);
+            }
         }
 
         private void InitializeSavedProfilesUi()
@@ -431,6 +575,164 @@ namespace ProxmoxVEGui
             }
         }
 
+        private void LoadRememberLoginFromDisk()
+        {
+            rememberLoginState = null;
+
+            try
+            {
+                if (!File.Exists(RememberLoginFile)) return;
+
+                XmlSerializer serializer = new XmlSerializer(typeof(RememberLoginState));
+
+                using (FileStream stream = new FileStream(RememberLoginFile, FileMode.Open, FileAccess.Read))
+                {
+                    rememberLoginState = serializer.Deserialize(stream) as RememberLoginState;
+                }
+            }
+            catch
+            {
+                rememberLoginState = null;
+            }
+        }
+
+        private bool ApplyRememberLoginToForm(bool showStatus)
+        {
+            if (rememberLoginState == null) return false;
+
+            try
+            {
+                string password = UnprotectString(rememberLoginState.EncryptedPassword);
+
+                if (string.IsNullOrWhiteSpace(rememberLoginState.Host)) return false;
+                if (string.IsNullOrWhiteSpace(rememberLoginState.Port)) return false;
+                if (string.IsNullOrWhiteSpace(rememberLoginState.Username)) return false;
+                if (string.IsNullOrEmpty(password)) return false;
+
+                txtHost.Text = rememberLoginState.Host;
+                txtPort.Text = rememberLoginState.Port;
+                txtUsername.Text = rememberLoginState.Username;
+                txtPassword.Text = password;
+                chkIgnoreSsl.Checked = rememberLoginState.IgnoreSsl;
+
+                if (string.Equals(rememberLoginState.Realm, "pam", StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbRealm.SelectedIndex = 0;
+                }
+                else
+                {
+                    cmbRealm.SelectedIndex = 1;
+                }
+
+                suppressRememberCheckboxEvent = true;
+                chkStayLoggedIn.Checked = true;
+                suppressRememberCheckboxEvent = false;
+
+                rememberLoginApplied = true;
+
+                if (showStatus)
+                {
+                    ShowProfileStatus("Gespeicherte Anmeldung geladen.", true);
+                }
+
+                return true;
+            }
+            catch
+            {
+                rememberLoginApplied = false;
+
+                suppressRememberCheckboxEvent = true;
+                chkStayLoggedIn.Checked = false;
+                suppressRememberCheckboxEvent = false;
+
+                DeleteRememberLoginFromDisk(false);
+
+                if (showStatus)
+                {
+                    ShowProfileStatus("Gespeicherte Anmeldung konnte nicht geladen werden.", false);
+                }
+
+                return false;
+            }
+        }
+
+        private void SaveRememberLoginToDisk(string host, string port, string username, string realm, bool ignoreSsl, string password)
+        {
+            Directory.CreateDirectory(ProfilesFolder);
+
+            rememberLoginState = new RememberLoginState
+            {
+                Host = host,
+                Port = port,
+                Username = username,
+                Realm = realm,
+                IgnoreSsl = ignoreSsl,
+                EncryptedPassword = ProtectString(password),
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            XmlSerializer serializer = new XmlSerializer(typeof(RememberLoginState));
+
+            using (FileStream stream = new FileStream(RememberLoginFile, FileMode.Create, FileAccess.Write))
+            {
+                serializer.Serialize(stream, rememberLoginState);
+            }
+
+            rememberLoginApplied = true;
+        }
+
+        private void DeleteRememberLoginFromDisk(bool showStatus)
+        {
+            try
+            {
+                if (File.Exists(RememberLoginFile))
+                {
+                    File.Delete(RememberLoginFile);
+                }
+            }
+            catch
+            {
+                // Löschen ist optional. Login darf dadurch nicht blockiert werden.
+            }
+
+            rememberLoginState = null;
+            rememberLoginApplied = false;
+
+            if (showStatus)
+            {
+                ShowProfileStatus("Gespeicherte Anmeldung entfernt.", true);
+            }
+        }
+
+        private string ProtectString(string plainText)
+        {
+            if (plainText == null) plainText = "";
+
+            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] encryptedBytes = ProtectedData.Protect(
+                plainBytes,
+                RememberEntropy,
+                DataProtectionScope.CurrentUser
+            );
+
+            return Convert.ToBase64String(encryptedBytes);
+        }
+
+        private string UnprotectString(string encryptedBase64)
+        {
+            if (string.IsNullOrWhiteSpace(encryptedBase64)) return "";
+
+            byte[] encryptedBytes = Convert.FromBase64String(encryptedBase64);
+            byte[] plainBytes = ProtectedData.Unprotect(
+                encryptedBytes,
+                RememberEntropy,
+                DataProtectionScope.CurrentUser
+            );
+
+            return Encoding.UTF8.GetString(plainBytes);
+        }
+
         private void ShowProfileStatus(string message, bool success)
         {
             lblStatus.ForeColor = success
@@ -486,6 +788,15 @@ namespace ProxmoxVEGui
 
             if (success)
             {
+                if (chkStayLoggedIn != null && chkStayLoggedIn.Checked)
+                {
+                    SaveRememberLoginToDisk(host, portStr, username, realm, ignoreSsl, password);
+                }
+                else
+                {
+                    DeleteRememberLoginFromDisk(false);
+                }
+
                 lblStatus.ForeColor = Color.FromArgb(34, 197, 94);
                 lblStatus.Text = "Login successful!";
 
@@ -1339,5 +1650,17 @@ namespace ProxmoxVEGui
         {
             return DisplayName;
         }
+    }
+
+    public class RememberLoginState
+    {
+        public string Host { get; set; } = "";
+        public string Port { get; set; } = "8006";
+        public string Username { get; set; } = "";
+        public string Realm { get; set; } = "pam";
+        public bool IgnoreSsl { get; set; } = true;
+        public string EncryptedPassword { get; set; } = "";
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }
