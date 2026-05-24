@@ -1,12 +1,13 @@
+using Microsoft.Web.WebView2.Core;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Web.WebView2.Core;
 
 namespace ProxmoxVEGui
 {
@@ -30,6 +31,7 @@ namespace ProxmoxVEGui
         private readonly Color _statusRunningColor = Color.FromArgb(34, 197, 94);
         private readonly Color _statusStoppedColor = Color.FromArgb(239, 68, 68);
 
+        // TreeView scrollbar
         private ModernScrollbarPart _treeScrollTrack;
         private ModernScrollbarPart _treeScrollThumb;
         private TreeViewNativeScrollbarHider _treeScrollbarHider;
@@ -41,15 +43,29 @@ namespace ProxmoxVEGui
         private const int TreeScrollbarMargin = 5;
         private const int TreeScrollbarMinThumbHeight = 42;
 
+        // DataGridView scrollbar
+        private ModernScrollbarPart _gridScrollTrack;
+        private ModernScrollbarPart _gridScrollThumb;
+        private DataGridViewNativeScrollbarHider _gridScrollbarHider;
+
+        private bool _gridScrollDragging = false;
+        private int _gridScrollDragOffsetY = 0;
+
+        private const int GridScrollbarWidth = 8;
+        private const int GridScrollbarMargin = 5;
+        private const int GridScrollbarMinThumbHeight = 42;
+
         public MainForm(ProxmoxClient client)
         {
             _client = client;
             InitializeComponent();
+            ApplyApplicationIcon();
         }
 
         private async void MainForm_Load(object sender, EventArgs e)
         {
             ApplyTreeViewDesign();
+            ApplyGridScrollbar();
 
             _configPanel = new ConfigPanel(_client);
             panelContentContainer.Controls.Add(_configPanel);
@@ -59,6 +75,10 @@ namespace ProxmoxVEGui
 
             timerRefresh.Start();
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // TREEVIEW SCROLLBAR
+        // ─────────────────────────────────────────────────────────────────────
 
         private void ApplyTreeViewDesign()
         {
@@ -195,6 +215,32 @@ namespace ProxmoxVEGui
         private void HideNativeTreeScrollbars()
         {
             _treeScrollbarHider?.HideNow();
+        }
+
+        private void ApplyApplicationIcon()
+        {
+            try
+            {
+                string[] possibleIconPaths =
+                {
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "img", "logo.ico"),
+                    Path.Combine(Application.StartupPath, "assets", "img", "logo.ico"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico")
+                };
+
+                foreach (string iconPath in possibleIconPaths)
+                {
+                    if (File.Exists(iconPath))
+                    {
+                        this.Icon = new Icon(iconPath);
+                        return;
+                    }
+                }
+            }
+            catch
+            {
+                // Icon ist optional. Die App soll trotzdem starten.
+            }
         }
 
         private void UpdateTreeScrollbar()
@@ -370,14 +416,8 @@ namespace ProxmoxVEGui
 
         private void TreeScrollbar_MouseWheel(object sender, MouseEventArgs e)
         {
-            if (e.Delta < 0)
-            {
-                ScrollTreeBy(3);
-            }
-            else if (e.Delta > 0)
-            {
-                ScrollTreeBy(-3);
-            }
+            if (e.Delta < 0) ScrollTreeBy(3);
+            else if (e.Delta > 0) ScrollTreeBy(-3);
         }
 
         private void treeResources_KeyDown(object sender, KeyEventArgs e)
@@ -413,14 +453,8 @@ namespace ProxmoxVEGui
 
             int visibleCapacity = GetTreeVisibleCapacity();
 
-            if (e.Y < _treeScrollThumb.Top)
-            {
-                ScrollTreeBy(-visibleCapacity);
-            }
-            else if (e.Y > _treeScrollThumb.Bottom)
-            {
-                ScrollTreeBy(visibleCapacity);
-            }
+            if (e.Y < _treeScrollThumb.Top) ScrollTreeBy(-visibleCapacity);
+            else if (e.Y > _treeScrollThumb.Bottom) ScrollTreeBy(visibleCapacity);
         }
 
         private void TreeScrollbarThumb_MouseDown(object sender, MouseEventArgs e)
@@ -441,13 +475,9 @@ namespace ProxmoxVEGui
             Point mouseInTrack;
 
             if (sender == _treeScrollThumb)
-            {
                 mouseInTrack = _treeScrollTrack.PointToClient(_treeScrollThumb.PointToScreen(e.Location));
-            }
             else
-            {
                 mouseInTrack = e.Location;
-            }
 
             int newThumbTop = mouseInTrack.Y - _treeScrollDragOffsetY;
             ScrollTreeToThumbTop(newThumbTop);
@@ -515,14 +545,10 @@ namespace ProxmoxVEGui
                 bool isRunning = false;
 
                 if (tag.Type == "vm" && tag.Data is PveVm vm)
-                {
                     isRunning = string.Equals(vm.Status, "running", StringComparison.OrdinalIgnoreCase);
-                }
 
                 if (tag.Type == "lxc" && tag.Data is PveLxc lxc)
-                {
                     isRunning = string.Equals(lxc.Status, "running", StringComparison.OrdinalIgnoreCase);
-                }
 
                 Color dotColor = isRunning ? _statusRunningColor : _statusStoppedColor;
 
@@ -572,6 +598,223 @@ namespace ProxmoxVEGui
                 }));
             }
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // DATAGRIDVIEW SCROLLBAR
+        // ─────────────────────────────────────────────────────────────────────
+
+        private void ApplyGridScrollbar()
+        {
+            // Disable ALL native scrollbars – we draw our own overlay instead
+            gridTasks.ScrollBars = ScrollBars.None;
+            gridTasks.Scroll += (s, e) => BeginInvoke(new Action(UpdateGridScrollbar));
+            gridTasks.MouseWheel += (s, e) => ScrollGridBy(e.Delta < 0 ? 3 : -3);
+
+            _gridScrollbarHider = new DataGridViewNativeScrollbarHider();
+            _gridScrollbarHider.Attach(gridTasks);
+
+            _gridScrollTrack = new ModernScrollbarPart
+            {
+                FillColor = Color.FromArgb(30, 41, 59),
+                HoverColor = Color.FromArgb(30, 41, 59),
+                Radius = 4,
+                Cursor = Cursors.Hand,
+                Visible = true
+            };
+            _gridScrollTrack.MouseDown += GridScrollbarTrack_MouseDown;
+            _gridScrollTrack.MouseMove += GridScrollbar_MouseMove;
+            _gridScrollTrack.MouseUp += GridScrollbar_MouseUp;
+            _gridScrollTrack.MouseWheel += GridScrollbar_MouseWheel;
+
+            _gridScrollThumb = new ModernScrollbarPart
+            {
+                FillColor = Color.FromArgb(249, 115, 22),
+                HoverColor = Color.FromArgb(251, 146, 60),
+                Radius = 4,
+                Cursor = Cursors.Hand,
+                Visible = true
+            };
+            _gridScrollThumb.MouseDown += GridScrollbarThumb_MouseDown;
+            _gridScrollThumb.MouseMove += GridScrollbar_MouseMove;
+            _gridScrollThumb.MouseUp += GridScrollbar_MouseUp;
+            _gridScrollThumb.MouseWheel += GridScrollbar_MouseWheel;
+
+            _gridScrollTrack.Controls.Add(_gridScrollThumb);
+            gridTasks.Controls.Add(_gridScrollTrack);
+            _gridScrollTrack.BringToFront();
+
+            gridTasks.Resize += (s, e) => { PositionGridScrollbar(); UpdateGridScrollbar(); };
+
+            PositionGridScrollbar();
+            UpdateGridScrollbar();
+        }
+
+        private void PositionGridScrollbar()
+        {
+            if (_gridScrollTrack == null) return;
+
+            int x = gridTasks.ClientSize.Width - GridScrollbarWidth - GridScrollbarMargin;
+            int y = GridScrollbarMargin;
+            int height = gridTasks.ClientSize.Height - (GridScrollbarMargin * 2);
+
+            if (height < 30 || x < 0)
+            {
+                _gridScrollTrack.Visible = false;
+                return;
+            }
+
+            _gridScrollTrack.Bounds = new Rectangle(x, y, GridScrollbarWidth, height);
+            _gridScrollTrack.Visible = true;
+            _gridScrollTrack.BringToFront();
+        }
+
+        private void UpdateGridScrollbar()
+        {
+            if (_gridScrollTrack == null || _gridScrollThumb == null) return;
+
+            _gridScrollbarHider?.HideNow();
+
+            int totalRows = gridTasks.Rows.Count;
+            if (totalRows == 0)
+            {
+                _gridScrollTrack.Visible = false;
+                return;
+            }
+
+            int visibleRows = GetGridVisibleRowCount();
+            _gridScrollTrack.Visible = true;
+            _gridScrollTrack.BringToFront();
+
+            int trackHeight = Math.Max(1, _gridScrollTrack.Height);
+            bool needsScrollbar = totalRows > visibleRows;
+
+            if (!needsScrollbar)
+            {
+                _gridScrollThumb.FillColor = Color.FromArgb(71, 85, 105);
+                _gridScrollThumb.HoverColor = Color.FromArgb(100, 116, 139);
+                _gridScrollThumb.Bounds = new Rectangle(0, 0, GridScrollbarWidth, trackHeight);
+                _gridScrollThumb.Visible = true;
+                _gridScrollThumb.Invalidate();
+                _gridScrollTrack.Invalidate();
+                return;
+            }
+
+            _gridScrollThumb.FillColor = Color.FromArgb(249, 115, 22);
+            _gridScrollThumb.HoverColor = Color.FromArgb(251, 146, 60);
+
+            int thumbHeight = Math.Max(
+                GridScrollbarMinThumbHeight,
+                (int)Math.Round((double)visibleRows / totalRows * trackHeight)
+            );
+            thumbHeight = Math.Min(trackHeight, thumbHeight);
+
+            int maxThumbTop = Math.Max(0, trackHeight - thumbHeight);
+            int maxScroll = Math.Max(1, totalRows - visibleRows);
+
+            int firstVisible = gridTasks.FirstDisplayedScrollingRowIndex >= 0
+                ? gridTasks.FirstDisplayedScrollingRowIndex
+                : 0;
+
+            int thumbTop = maxScroll > 0
+                ? (int)Math.Round((double)ClampInt(firstVisible, 0, maxScroll) / maxScroll * maxThumbTop)
+                : 0;
+
+            _gridScrollThumb.Bounds = new Rectangle(0, thumbTop, GridScrollbarWidth, thumbHeight);
+            _gridScrollThumb.Visible = true;
+            _gridScrollThumb.Invalidate();
+            _gridScrollTrack.Invalidate();
+        }
+
+        private int GetGridVisibleRowCount()
+        {
+            int rowHeight = gridTasks.RowTemplate.Height > 0 ? gridTasks.RowTemplate.Height : 23;
+            rowHeight = Math.Max(1, rowHeight);
+            int usable = Math.Max(1, gridTasks.ClientSize.Height - gridTasks.ColumnHeadersHeight);
+            return Math.Max(1, usable / rowHeight);
+        }
+
+        private void ScrollGridBy(int delta)
+        {
+            int totalRows = gridTasks.Rows.Count;
+            if (totalRows == 0) return;
+
+            int current = gridTasks.FirstDisplayedScrollingRowIndex >= 0
+                ? gridTasks.FirstDisplayedScrollingRowIndex
+                : 0;
+
+            int visibleRows = GetGridVisibleRowCount();
+            int newIndex = ClampInt(current + delta, 0, Math.Max(0, totalRows - visibleRows));
+
+            gridTasks.FirstDisplayedScrollingRowIndex = newIndex;
+            _gridScrollbarHider?.HideNow();
+            UpdateGridScrollbar();
+        }
+
+        private void GridScrollbarTrack_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (_gridScrollThumb == null) return;
+
+            int visibleRows = GetGridVisibleRowCount();
+            if (e.Y < _gridScrollThumb.Top) ScrollGridBy(-visibleRows);
+            else if (e.Y > _gridScrollThumb.Bottom) ScrollGridBy(visibleRows);
+        }
+
+        private void GridScrollbarThumb_MouseDown(object sender, MouseEventArgs e)
+        {
+            _gridScrollDragging = true;
+            _gridScrollDragOffsetY = e.Y;
+            _gridScrollThumb.Capture = true;
+            _gridScrollThumb.FillColor = Color.FromArgb(234, 88, 12);
+            _gridScrollThumb.Invalidate();
+        }
+
+        private void GridScrollbar_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_gridScrollDragging || _gridScrollTrack == null || _gridScrollThumb == null) return;
+
+            Point mouseInTrack = sender == _gridScrollThumb
+                ? _gridScrollTrack.PointToClient(_gridScrollThumb.PointToScreen(e.Location))
+                : e.Location;
+
+            int newThumbTop = ClampInt(
+                mouseInTrack.Y - _gridScrollDragOffsetY,
+                0,
+                Math.Max(0, _gridScrollTrack.Height - _gridScrollThumb.Height)
+            );
+
+            int maxThumbTop = Math.Max(1, _gridScrollTrack.Height - _gridScrollThumb.Height);
+            int totalRows = gridTasks.Rows.Count;
+            int visibleRows = GetGridVisibleRowCount();
+            int maxScroll = Math.Max(1, totalRows - visibleRows);
+
+            int targetRow = ClampInt(
+                (int)Math.Round((double)newThumbTop / maxThumbTop * maxScroll),
+                0,
+                Math.Max(0, totalRows - 1)
+            );
+
+            if (totalRows > 0)
+                gridTasks.FirstDisplayedScrollingRowIndex = targetRow;
+
+            _gridScrollbarHider?.HideNow();
+            UpdateGridScrollbar();
+        }
+
+        private void GridScrollbar_MouseUp(object sender, MouseEventArgs e)
+        {
+            _gridScrollDragging = false;
+            if (_gridScrollThumb != null) _gridScrollThumb.Capture = false;
+            UpdateGridScrollbar();
+        }
+
+        private void GridScrollbar_MouseWheel(object sender, MouseEventArgs e)
+        {
+            ScrollGridBy(e.Delta < 0 ? 3 : -3);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // DATA REFRESH
+        // ─────────────────────────────────────────────────────────────────────
 
         public async Task RefreshDataAsync()
         {
@@ -719,19 +962,24 @@ namespace ProxmoxVEGui
                 var row = gridTasks.Rows[index];
 
                 if (task.Status == "OK")
-                {
                     row.Cells[4].Style.ForeColor = Color.FromArgb(34, 197, 94);
-                }
                 else if (task.Status == "RUNNING")
-                {
                     row.Cells[4].Style.ForeColor = Color.FromArgb(59, 130, 246);
-                }
                 else
-                {
                     row.Cells[4].Style.ForeColor = Color.FromArgb(239, 68, 68);
-                }
             }
+
+            BeginInvoke(new Action(() =>
+            {
+                PositionGridScrollbar();
+                _gridScrollbarHider?.HideNow();
+                UpdateGridScrollbar();
+            }));
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // SELECTION & UI UPDATE
+        // ─────────────────────────────────────────────────────────────────────
 
         private void treeResources_AfterSelect(object sender, TreeViewEventArgs e)
         {
@@ -913,9 +1161,7 @@ namespace ProxmoxVEGui
             {
                 var tag = treeResources.SelectedNode.Tag as ResourceTag;
                 if (tag != null && tag.Type == "vm" && tag.VmId == vmid)
-                {
                     lblDetailIp.Text = "IP Address: " + ip;
-                }
             }
         }
 
@@ -927,15 +1173,14 @@ namespace ProxmoxVEGui
             {
                 var tag = treeResources.SelectedNode.Tag as ResourceTag;
                 if (tag != null && tag.Type == "lxc" && tag.VmId == vmid)
-                {
                     lblDetailIp.Text = "IP Address: " + ip;
-                }
             }
         }
 
         private void UpdateActionButtonsState(ResourceTag tag)
         {
-            if (tag == null || tag.Type == "datacenter" || tag.Type == "group_vm" || tag.Type == "group_lxc" || tag.Type == "group_storage" || tag.Type == "storage")
+            if (tag == null || tag.Type == "datacenter" || tag.Type == "group_vm" ||
+                tag.Type == "group_lxc" || tag.Type == "group_storage" || tag.Type == "storage")
             {
                 btnStart.Enabled = false;
                 btnStop.Enabled = false;
@@ -976,6 +1221,10 @@ namespace ProxmoxVEGui
                 btnReboot.Enabled = false;
             }
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // TAB SWITCHING & CONSOLE
+        // ─────────────────────────────────────────────────────────────────────
 
         private void SwitchToTab(string tabName)
         {
@@ -1053,7 +1302,8 @@ namespace ProxmoxVEGui
             if (node == null) return;
 
             var tag = node.Tag as ResourceTag;
-            if (tag == null || tag.Type == "datacenter" || tag.Type == "group_vm" || tag.Type == "group_lxc" || tag.Type == "group_storage" || tag.Type == "storage")
+            if (tag == null || tag.Type == "datacenter" || tag.Type == "group_vm" ||
+                tag.Type == "group_lxc" || tag.Type == "group_storage" || tag.Type == "storage")
             {
                 webViewConsole.Visible = false;
                 lblConsoleWarning.Visible = true;
@@ -1063,17 +1313,11 @@ namespace ProxmoxVEGui
 
             string consoleUrl = "";
             if (tag.Type == "node")
-            {
                 consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=shell&novnc=1&node={tag.NodeName}";
-            }
             else if (tag.Type == "vm")
-            {
                 consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=kvm&novnc=1&vmid={tag.VmId}&node={tag.NodeName}";
-            }
             else if (tag.Type == "lxc")
-            {
                 consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=lxc&novnc=1&vmid={tag.VmId}&node={tag.NodeName}";
-            }
 
             lblConsoleWarning.Visible = true;
             webViewConsole.Visible = false;
@@ -1102,10 +1346,12 @@ namespace ProxmoxVEGui
             }
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // BUTTON EVENTS
+        // ─────────────────────────────────────────────────────────────────────
+
         private void btnTabDashboard_Click(object sender, EventArgs e) => SwitchToTab("dashboard");
-
         private void btnTabConsole_Click(object sender, EventArgs e) => SwitchToTab("console");
-
         private void btnTabConfig_Click(object sender, EventArgs e) => SwitchToTab("config");
 
         private async void btnRefresh_Click(object sender, EventArgs e)
@@ -1137,11 +1383,8 @@ namespace ProxmoxVEGui
         }
 
         private void btnStart_Click(object sender, EventArgs e) => PerformPowerAction("start");
-
         private void btnStop_Click(object sender, EventArgs e) => PerformPowerAction("stop");
-
         private void btnShutdown_Click(object sender, EventArgs e) => PerformPowerAction("shutdown");
-
         private void btnReboot_Click(object sender, EventArgs e) => PerformPowerAction("reboot");
 
         private async void btnDelete_Click(object sender, EventArgs e)
@@ -1152,7 +1395,12 @@ namespace ProxmoxVEGui
             var tag = node.Tag as ResourceTag;
             if (tag == null || (tag.Type != "vm" && tag.Type != "lxc")) return;
 
-            var confirm = MessageBox.Show($"Are you sure you want to permanently delete [{tag.VmId}] {tag.Name}?", "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var confirm = MessageBox.Show(
+                $"Are you sure you want to permanently delete [{tag.VmId}] {tag.Name}?",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
 
             if (confirm == DialogResult.Yes)
             {
@@ -1177,15 +1425,8 @@ namespace ProxmoxVEGui
             this.Close();
         }
 
-        private void btnCreateVm_Click(object sender, EventArgs e)
-        {
-            OpenCreateDialog("vm");
-        }
-
-        private void btnCreateLxc_Click(object sender, EventArgs e)
-        {
-            OpenCreateDialog("lxc");
-        }
+        private void btnCreateVm_Click(object sender, EventArgs e) => OpenCreateDialog("vm");
+        private void btnCreateLxc_Click(object sender, EventArgs e) => OpenCreateDialog("lxc");
 
         private void OpenCreateDialog(string type)
         {
@@ -1211,21 +1452,21 @@ namespace ProxmoxVEGui
                     {
                         var tag = resource.Tag as ResourceTag;
                         if (tag != null && (tag.Type == "vm" || tag.Type == "lxc"))
-                        {
                             allResourceIds.Add(tag.VmId);
-                        }
                     }
                 }
             }
 
             if (allResourceIds.Count > 0)
-            {
                 nextId = allResourceIds.Max() + 1;
-            }
 
             var dialog = new CreateResourceDialog(this, _client, type, onlineNodes, nextId);
             dialog.ShowDialog();
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // TIMER REFRESH
+        // ─────────────────────────────────────────────────────────────────────
 
         private async void timerRefresh_Tick(object sender, EventArgs e)
         {
@@ -1307,6 +1548,10 @@ namespace ProxmoxVEGui
             }
         }
 
+        // ─────────────────────────────────────────────────────────────────────
+        // HELPERS
+        // ─────────────────────────────────────────────────────────────────────
+
         private static int ClampInt(int value, int min, int max)
         {
             if (value < min) return min;
@@ -1342,6 +1587,10 @@ namespace ProxmoxVEGui
             return string.Format("{0}m {1}s", time.Minutes, time.Seconds);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUPPORT CLASSES
+    // ─────────────────────────────────────────────────────────────────────────
 
     public class ResourceTag
     {
@@ -1437,7 +1686,6 @@ namespace ProxmoxVEGui
         public void Attach(TreeView treeView)
         {
             _treeView = treeView;
-
             if (_treeView == null) return;
 
             _treeView.HandleCreated += TreeView_HandleCreated;
@@ -1453,14 +1701,12 @@ namespace ProxmoxVEGui
         public void HideNow()
         {
             if (_treeView == null || _treeView.IsDisposed || !_treeView.IsHandleCreated) return;
-
             ShowScrollBar(_treeView.Handle, SB_BOTH, false);
         }
 
         private void TreeView_HandleCreated(object sender, EventArgs e)
         {
             if (_treeView == null) return;
-
             AssignHandle(_treeView.Handle);
             HideNow();
         }
@@ -1474,11 +1720,77 @@ namespace ProxmoxVEGui
         {
             base.WndProc(ref m);
 
-            if (m.Msg == WM_PAINT ||
-                m.Msg == WM_SIZE ||
-                m.Msg == WM_NCPAINT ||
-                m.Msg == WM_VSCROLL ||
-                m.Msg == WM_HSCROLL ||
+            if (m.Msg == WM_PAINT || m.Msg == WM_SIZE || m.Msg == WM_NCPAINT ||
+                m.Msg == WM_VSCROLL || m.Msg == WM_HSCROLL || m.Msg == WM_MOUSEWHEEL)
+            {
+                HideNow();
+            }
+        }
+    }
+
+    public class DataGridViewNativeScrollbarHider : NativeWindow
+    {
+        private DataGridView _grid;
+
+        private const int SB_VERT = 1;
+        private const int SB_BOTH = 3;
+        private const int WM_PAINT = 0x000F;
+        private const int WM_SIZE = 0x0005;
+        private const int WM_NCPAINT = 0x0085;
+        private const int WM_NCCALCSIZE = 0x0083;
+        private const int WM_VSCROLL = 0x0115;
+        private const int WM_HSCROLL = 0x0114;
+        private const int WM_MOUSEWHEEL = 0x020A;
+
+        // Style bits
+        private const int GWL_STYLE = -16;
+        private const int WS_VSCROLL = 0x00200000;
+        private const int WS_HSCROLL = 0x00100000;
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowScrollBar(IntPtr hWnd, int wBar, bool bShow);
+
+        [DllImport("user32.dll")]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        public void Attach(DataGridView grid)
+        {
+            _grid = grid;
+            if (_grid == null) return;
+
+            _grid.HandleCreated += (s, e) => { AssignHandle(_grid.Handle); HideNow(); };
+            _grid.HandleDestroyed += (s, e) => ReleaseHandle();
+
+            if (_grid.IsHandleCreated)
+            {
+                AssignHandle(_grid.Handle);
+                HideNow();
+            }
+        }
+
+        public void HideNow()
+        {
+            if (_grid == null || _grid.IsDisposed || !_grid.IsHandleCreated) return;
+
+            // Remove scroll style bits so Windows stops reserving NC space for them
+            int style = GetWindowLong(_grid.Handle, GWL_STYLE);
+            int newStyle = style & ~WS_VSCROLL & ~WS_HSCROLL;
+            if (style != newStyle)
+                SetWindowLong(_grid.Handle, GWL_STYLE, newStyle);
+
+            ShowScrollBar(_grid.Handle, SB_BOTH, false);
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+
+            if (m.Msg == WM_PAINT || m.Msg == WM_SIZE ||
+                m.Msg == WM_NCPAINT || m.Msg == WM_NCCALCSIZE ||
+                m.Msg == WM_VSCROLL || m.Msg == WM_HSCROLL ||
                 m.Msg == WM_MOUSEWHEEL)
             {
                 HideNow();
