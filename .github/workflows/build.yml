@@ -27,7 +27,7 @@ jobs:
       - name: Extract version and check tag
         shell: pwsh
         run: |
-          $content = Get-Content setup.iss
+          $content = Get-Content setup.iss -Raw
           if ($content -match '#define MyAppVersion "([^"]+)"') {
             $version = $Matches[1]
             Write-Host "Detected version: $version"
