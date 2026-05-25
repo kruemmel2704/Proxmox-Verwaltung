@@ -20,6 +20,26 @@ namespace ProxmoxVEGui
         {
             _client = client;
             InitializeComponent();
+            IconHelper.ApplyIcon(this);
+            SetTransparentBgForLabels(this);
+        }
+
+        private void SetTransparentBgForLabels(Control parent)
+        {
+            foreach (Control ctrl in parent.Controls)
+            {
+                if (ctrl is Label label)
+                {
+                    if (label.Parent is GlassPanel)
+                    {
+                        label.BackColor = Color.Transparent;
+                    }
+                }
+                else if (ctrl.HasChildren)
+                {
+                    SetTransparentBgForLabels(ctrl);
+                }
+            }
         }
 
         private async void MainForm_Load(object sender, EventArgs e)
@@ -438,14 +458,14 @@ namespace ProxmoxVEGui
             if (tabName == "dashboard")
             {
                 panelDashboard.Visible = true;
-                btnTabDashboard.BackColor = Color.FromArgb(10, 15, 25);
-                btnTabDashboard.ForeColor = Color.FromArgb(249, 115, 22);
+                btnTabDashboard.BackColor = Color.FromArgb(249, 115, 22);
+                btnTabDashboard.ForeColor = Color.White;
             }
             else if (tabName == "console")
             {
                 panelConsole.Visible = true;
-                btnTabConsole.BackColor = Color.FromArgb(10, 15, 25);
-                btnTabConsole.ForeColor = Color.FromArgb(249, 115, 22);
+                btnTabConsole.BackColor = Color.FromArgb(249, 115, 22);
+                btnTabConsole.ForeColor = Color.White;
                 LoadConsoleForSelectedResource();
             }
             else if (tabName == "config")
@@ -453,8 +473,8 @@ namespace ProxmoxVEGui
                 if (_configPanel != null)
                 {
                     _configPanel.Visible = true;
-                    btnTabConfig.BackColor = Color.FromArgb(10, 15, 25);
-                    btnTabConfig.ForeColor = Color.FromArgb(249, 115, 22);
+                    btnTabConfig.BackColor = Color.FromArgb(249, 115, 22);
+                    btnTabConfig.ForeColor = Color.White;
                     LoadConfigForSelectedResource();
                 }
             }

@@ -92,13 +92,22 @@ namespace ProxmoxVEGui
         private Label lblCfgSearchDomain; private TextBox txtCfgSearchDomain;
 
         // --- Boot ---
-        private Label lblCfgBootOrder; private TextBox txtCfgBootOrder;
+        private Label lblCfgBootOrder;
+        private ComboBox cmbBoot1;
+        private ComboBox cmbBoot2;
+        private ComboBox cmbBoot3;
+
+        // --- Disks ---
+        private Label lblSectionDisks;
+        private Label lblDiskWarning;
 
         // State
         private string _currentNode;
         private int _currentVmId;
         private string _currentType; // "vm" or "lxc"
         private Dictionary<string, object> _lastConfig = new Dictionary<string, object>();
+        private readonly List<Control> _dynamicDiskControls = new List<Control>();
+        private readonly Dictionary<string, TextBox> _dynamicDiskTextBoxes = new Dictionary<string, TextBox>();
 
         public ConfigPanel(ProxmoxClient client)
         {
@@ -305,7 +314,29 @@ namespace ProxmoxVEGui
             // ─── Section: Boot ────────────────────────────────────────────
             y = AddSectionHeader(ref lblSectionBoot, "🚀  Boot Order", y);
 
-            (lblCfgBootOrder, txtCfgBootOrder) = AddTextRow("Boot order  (e.g. order=scsi0;net0)", y); y += 55;
+            lblCfgBootOrder = AddLabel("Boot Device Priority", y);
+            cmbBoot1 = AddBootComboBox(y, 255);
+            cmbBoot2 = AddBootComboBox(y, 435);
+            cmbBoot3 = AddBootComboBox(y, 615);
+
+            cmbBoot1.SelectedIndexChanged += (s, e) => btnApply.Enabled = true;
+            cmbBoot2.SelectedIndexChanged += (s, e) => btnApply.Enabled = true;
+            cmbBoot3.SelectedIndexChanged += (s, e) => btnApply.Enabled = true;
+
+            y += 42;
+
+            // ─── Section: Storage & Disks ──────────────────────────────────
+            y = AddSectionHeader(ref lblSectionDisks, "💾  Storage & Hard Disks", y);
+            lblDiskWarning = new Label
+            {
+                Text = "ℹ️ Disks can be configured here. To detach a disk, clear its text field.\nNote: Changing disk sizes directly is not supported by the Proxmox API; use the Web UI to resize.",
+                AutoSize = false,
+                Size = new Size(820, 36),
+                Font = new Font("Segoe UI", 9F, FontStyle.Italic),
+                ForeColor = Color.FromArgb(148, 163, 184)
+            };
+            panelScroll.Controls.Add(lblDiskWarning);
+            y += 42;
 
             // Set total height of scrollable content
             panelScroll.AutoScrollMinSize = new Size(0, y + 40);
@@ -376,6 +407,15 @@ namespace ProxmoxVEGui
         private void PopulateFields(string type)
         {
             HideAllFields();
+
+            // Clear old dynamic disk controls
+            foreach (var ctrl in _dynamicDiskControls)
+            {
+                panelScroll.Controls.Remove(ctrl);
+                ctrl.Dispose();
+            }
+            _dynamicDiskControls.Clear();
+            _dynamicDiskTextBoxes.Clear();
 
             string V(string key) => _lastConfig.ContainsKey(key) ? _lastConfig[key]?.ToString() ?? "" : "";
             bool B(string key) => V(key) == "1";
@@ -460,7 +500,54 @@ namespace ProxmoxVEGui
                 if (string.IsNullOrEmpty(vga)) cmbCfgVga.SelectedIndex = -1;
                 else cmbCfgVga.Text = vga;
 
-                txtCfgBootOrder.Text = V("boot");
+                // Find all potential bootable devices in _lastConfig
+                var bootableDevices = _lastConfig.Keys
+                    .Where(k => (k.StartsWith("scsi") && k != "scsihw") ||
+                                 k.StartsWith("ide") ||
+                                 k.StartsWith("sata") ||
+                                 k.StartsWith("virtio") ||
+                                 k.StartsWith("net"))
+                    .OrderBy(k => k)
+                    .ToList();
+
+                // Setup boot dropdowns with [None] + bootable devices
+                void SetupBootDropdown(ComboBox cmb, string selectedVal)
+                {
+                    cmb.Items.Clear();
+                    cmb.Items.Add("[None]");
+                    foreach (var dev in bootableDevices)
+                    {
+                        cmb.Items.Add(dev);
+                    }
+                    if (!string.IsNullOrEmpty(selectedVal) && bootableDevices.Contains(selectedVal))
+                    {
+                        cmb.SelectedItem = selectedVal;
+                    }
+                    else
+                    {
+                        cmb.SelectedIndex = 0;
+                    }
+                }
+
+                string bootVal = V("boot");
+                string orderStr = "";
+                if (bootVal.StartsWith("order="))
+                {
+                    orderStr = bootVal.Substring(6);
+                }
+                else
+                {
+                    orderStr = bootVal;
+                }
+                string[] currentOrder = orderStr.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+                string val1 = currentOrder.Length > 0 ? currentOrder[0] : "";
+                string val2 = currentOrder.Length > 1 ? currentOrder[1] : "";
+                string val3 = currentOrder.Length > 2 ? currentOrder[2] : "";
+
+                SetupBootDropdown(cmbBoot1, val1);
+                SetupBootDropdown(cmbBoot2, val2);
+                SetupBootDropdown(cmbBoot3, val3);
 
                 // Layout VM specific sections
                 y = LayoutSectionHeader(lblSectionSystem, y);
@@ -490,7 +577,19 @@ namespace ProxmoxVEGui
                 y += 15;
 
                 y = LayoutSectionHeader(lblSectionBoot, y);
-                y = LayoutRow(lblCfgBootOrder, txtCfgBootOrder, y);
+                lblCfgBootOrder.Location = new Point(4, y + 8);
+                lblCfgBootOrder.Visible = true;
+
+                cmbBoot1.Location = new Point(255, y + 1);
+                cmbBoot1.Visible = true;
+
+                cmbBoot2.Location = new Point(435, y + 1);
+                cmbBoot2.Visible = true;
+
+                cmbBoot3.Location = new Point(615, y + 1);
+                cmbBoot3.Visible = true;
+
+                y += 42;
             }
             else // lxc
             {
@@ -549,6 +648,36 @@ namespace ProxmoxVEGui
                 y = LayoutSectionHeader(lblSectionLxcDns, y);
                 y = LayoutRow(lblCfgSearchDomain, txtCfgSearchDomain, y);
                 y = LayoutRow(lblCfgNameserver, txtCfgNameserver, y);
+            }
+
+            // Layout Disks & Storage
+            var diskKeys = _lastConfig.Keys
+                .Where(k => IsDiskKey(k, type))
+                .OrderBy(k => k == "rootfs" ? "" : k)
+                .ToList();
+
+            if (diskKeys.Count > 0)
+            {
+                y = LayoutSectionHeader(lblSectionDisks, y);
+
+                lblDiskWarning.Location = new Point(4, y);
+                lblDiskWarning.Visible = true;
+                y += 42;
+
+                foreach (var key in diskKeys)
+                {
+                    var (lbl, txt) = AddTextRow($"{key.ToUpper()}", y);
+                    txt.Text = V(key);
+                    _dynamicDiskControls.Add(lbl);
+                    _dynamicDiskControls.Add(txt);
+                    _dynamicDiskTextBoxes[key] = txt;
+                    
+                    // Wire event handler to enable apply button if user edits the text box
+                    txt.TextChanged += (s, e) => btnApply.Enabled = true;
+                    
+                    y += 42;
+                }
+                y += 15;
             }
 
             panelScroll.AutoScrollMinSize = new Size(0, y + 40);
@@ -640,6 +769,26 @@ namespace ProxmoxVEGui
             return raw.Split(',')[0].Split('=').Last().Trim();
         }
 
+        private bool IsDiskKey(string key, string type)
+        {
+            if (type == "vm")
+            {
+                return (key.StartsWith("scsi") && key != "scsihw") ||
+                       key.StartsWith("ide") ||
+                       key.StartsWith("sata") ||
+                       key.StartsWith("virtio") ||
+                       key.StartsWith("unused") ||
+                       key == "efidisk0" ||
+                       key == "tpmstate0";
+            }
+            else // lxc
+            {
+                return key == "rootfs" ||
+                       key.StartsWith("mp") ||
+                       key.StartsWith("unused");
+            }
+        }
+
         // ─── Apply changes back to Proxmox ────────────────────────────────────
         private async Task ApplyChangesAsync()
         {
@@ -708,10 +857,18 @@ namespace ProxmoxVEGui
                     else
                         parameters["vga"] = cmbCfgVga.Text;
 
-                    if (string.IsNullOrWhiteSpace(txtCfgBootOrder.Text))
-                        deleteList.Add("boot");
+                    var bootOrderList = new List<string>();
+                    if (cmbBoot1.SelectedItem != null && cmbBoot1.SelectedItem.ToString() != "[None]")
+                        bootOrderList.Add(cmbBoot1.SelectedItem.ToString());
+                    if (cmbBoot2.SelectedItem != null && cmbBoot2.SelectedItem.ToString() != "[None]")
+                        bootOrderList.Add(cmbBoot2.SelectedItem.ToString());
+                    if (cmbBoot3.SelectedItem != null && cmbBoot3.SelectedItem.ToString() != "[None]")
+                        bootOrderList.Add(cmbBoot3.SelectedItem.ToString());
+
+                    if (bootOrderList.Count > 0)
+                        parameters["boot"] = "order=" + string.Join(";", bootOrderList);
                     else
-                        parameters["boot"] = txtCfgBootOrder.Text.Trim();
+                        deleteList.Add("boot");
 
                     // Build net0 string for VM
                     string mac = txtCfgNetMac.Text.Trim();
@@ -802,6 +959,25 @@ namespace ProxmoxVEGui
                     if (!string.IsNullOrEmpty(gw6)) lxcNet += $",gw6={gw6}";
 
                     parameters["net0"] = lxcNet;
+                }
+
+                // Add dynamic disks parameters
+                foreach (var kvp in _dynamicDiskTextBoxes)
+                {
+                    string key = kvp.Key;
+                    string newVal = kvp.Value.Text.Trim();
+                    string oldVal = _lastConfig.ContainsKey(key) ? _lastConfig[key]?.ToString() ?? "" : "";
+                    if (newVal != oldVal)
+                    {
+                        if (string.IsNullOrEmpty(newVal))
+                        {
+                            deleteList.Add(key);
+                        }
+                        else
+                        {
+                            parameters[key] = newVal;
+                        }
+                    }
                 }
 
                 if (deleteList.Count > 0)
@@ -951,6 +1127,22 @@ namespace ProxmoxVEGui
             return cmb;
         }
 
+        private ComboBox AddBootComboBox(int y, int x)
+        {
+            var cmb = new ComboBox
+            {
+                Location = new Point(x, y + 1),
+                Size = new Size(170, 28),
+                BackColor = InputBgColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            panelScroll.Controls.Add(cmb);
+            return cmb;
+        }
+
         private (Label lbl, TextBox txt) AddTextRow(string labelText, int y)
         {
             var lbl = AddLabel(labelText, y);
@@ -1005,7 +1197,7 @@ namespace ProxmoxVEGui
                 lblCfgNetMac, txtCfgNetMac, lblCfgNetRate, numCfgNetRate,
                 lblCfgLxcIp, txtCfgLxcIp, lblCfgLxcGw, txtCfgLxcGw, lblCfgLxcIp6, txtCfgLxcIp6, lblCfgLxcGw6, txtCfgLxcGw6,
                 lblCfgSearchDomain, txtCfgSearchDomain, lblCfgNameserver, txtCfgNameserver,
-                lblCfgBootOrder, txtCfgBootOrder
+                lblCfgBootOrder, cmbBoot1, cmbBoot2, cmbBoot3, lblSectionDisks, lblDiskWarning
             };
             foreach (var c in controlsToHide)
             {
