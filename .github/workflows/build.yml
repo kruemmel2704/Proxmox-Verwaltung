@@ -24,6 +24,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract version and check tag
+        shell: pwsh
+        run: |
+          $content = Get-Content setup.iss
+          if ($content -match '#define MyAppVersion "([^"]+)"') {
+            $version = $Matches[1]
+            Write-Host "Detected version: $version"
+            echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+            
+            if ("${{ github.ref }}" -eq "refs/heads/main") {
+              # Fetch tags to check if this version already has a release tag
+              git fetch --tags
+              $tag = "v$version"
+              $tagExists = git tag -l $tag
+              if (-not $tagExists) {
+                Write-Host "Tag $tag does not exist. A new release will be created."
+                echo "NEW_RELEASE_NEEDED=true" >> $env:GITHUB_ENV
+              } else {
+                Write-Host "Tag $tag already exists. Skipping release creation."
+                echo "NEW_RELEASE_NEEDED=false" >> $env:GITHUB_ENV
+              }
+            } else {
+              echo "NEW_RELEASE_NEEDED=false" >> $env:GITHUB_ENV
+            }
+          } else {
+            Write-Error "Could not find MyAppVersion in setup.iss"
+            exit 1
+          }
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -42,9 +71,11 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/V') || (github.ref == 'refs/heads/main' && env.NEW_RELEASE_NEEDED == 'true')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', env.APP_VERSION) }}
+          name: Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', env.APP_VERSION) }}
           files: installer_output/ProxmoxVEGui-Setup.exe
           draft: false
           prerelease: false
