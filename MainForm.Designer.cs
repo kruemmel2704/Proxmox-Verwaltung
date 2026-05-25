@@ -22,6 +22,9 @@ namespace ProxmoxVEGui
             this.splitContainer1 = new System.Windows.Forms.SplitContainer();
             this.lblSidebarHeader = new System.Windows.Forms.Label();
             this.treeResources = new System.Windows.Forms.TreeView();
+            this.panelVersionCheck = new System.Windows.Forms.Panel();
+            this.lblVersion = new System.Windows.Forms.Label();
+            this.btnCheckUpdate = new ProxmoxVEGui.RoundedButton();
             this.panelContentContainer = new System.Windows.Forms.Panel();
             this.panelConsole = new System.Windows.Forms.Panel();
             this.lblConsoleWarning = new System.Windows.Forms.Label();
@@ -100,6 +103,7 @@ namespace ProxmoxVEGui
             this.splitContainer1.Panel1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(17)))), ((int)(((byte)(24)))), ((int)(((byte)(39)))));
             this.splitContainer1.Panel1.Controls.Add(this.lblSidebarHeader);
             this.splitContainer1.Panel1.Controls.Add(this.treeResources);
+            this.splitContainer1.Panel1.Controls.Add(this.panelVersionCheck);
             // 
             // splitContainer1.Panel2
             // 
@@ -134,9 +138,49 @@ namespace ProxmoxVEGui
             this.treeResources.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(249)))), ((int)(((byte)(115)))), ((int)(((byte)(22)))));
             this.treeResources.Location = new System.Drawing.Point(12, 60);
             this.treeResources.Name = "treeResources";
-            this.treeResources.Size = new System.Drawing.Size(236, 609);
+            this.treeResources.Size = new System.Drawing.Size(236, 564);
             this.treeResources.TabIndex = 1;
             this.treeResources.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeResources_AfterSelect);
+            // 
+            // panelVersionCheck
+            // 
+            this.panelVersionCheck.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.panelVersionCheck.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(18)))), ((int)(((byte)(31)))));
+            this.panelVersionCheck.Controls.Add(this.lblVersion);
+            this.panelVersionCheck.Controls.Add(this.btnCheckUpdate);
+            this.panelVersionCheck.Location = new System.Drawing.Point(12, 631);
+            this.panelVersionCheck.Name = "panelVersionCheck";
+            this.panelVersionCheck.Size = new System.Drawing.Size(236, 38);
+            this.panelVersionCheck.TabIndex = 2;
+            // 
+            // lblVersion
+            // 
+            this.lblVersion.AutoSize = true;
+            this.lblVersion.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblVersion.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(148)))), ((int)(((byte)(163)))), ((int)(((byte)(184)))));
+            this.lblVersion.Location = new System.Drawing.Point(8, 11);
+            this.lblVersion.Name = "lblVersion";
+            this.lblVersion.Size = new System.Drawing.Size(46, 15);
+            this.lblVersion.TabIndex = 0;
+            this.lblVersion.Text = "v1.0.6";
+            // 
+            // btnCheckUpdate
+            // 
+            this.btnCheckUpdate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCheckUpdate.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(41)))), ((int)(((byte)(59)))));
+            this.btnCheckUpdate.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnCheckUpdate.FlatAppearance.BorderSize = 0;
+            this.btnCheckUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCheckUpdate.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnCheckUpdate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(226)))), ((int)(((byte)(232)))), ((int)(((byte)(240)))));
+            this.btnCheckUpdate.Location = new System.Drawing.Point(126, 6);
+            this.btnCheckUpdate.Name = "btnCheckUpdate";
+            this.btnCheckUpdate.Size = new System.Drawing.Size(104, 26);
+            this.btnCheckUpdate.TabIndex = 1;
+            this.btnCheckUpdate.Text = "Check Update";
+            this.btnCheckUpdate.UseVisualStyleBackColor = false;
+            this.btnCheckUpdate.Click += new System.EventHandler(this.btnCheckUpdate_Click);
             // 
             // panelContentContainer
             // 
@@ -827,5 +871,8 @@ namespace ProxmoxVEGui
         private System.Windows.Forms.DataGridViewTextBoxColumn colDescription;
         private System.Windows.Forms.DataGridViewTextBoxColumn colStatus;
         private System.Windows.Forms.Timer timerRefresh;
+        private System.Windows.Forms.Panel panelVersionCheck;
+        private System.Windows.Forms.Label lblVersion;
+        private RoundedButton btnCheckUpdate;
     }
 }
