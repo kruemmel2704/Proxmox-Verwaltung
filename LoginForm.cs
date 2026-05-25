@@ -248,7 +248,7 @@ namespace ProxmoxVEGui
 
             panelSavedProfiles.BackColor = Color.FromArgb(17, 24, 39);
             panelSavedProfiles.BorderColor = Color.FromArgb(55, 65, 81);
-            panelSavedProfiles.BorderRadius = 18;
+            panelSavedProfiles.BorderRadius = 12;
             panelSavedProfiles.BorderSize = 1;
             panelSavedProfiles.Size = new Size(500, 530);
             panelSavedProfiles.Padding = new Padding(20);
@@ -263,14 +263,14 @@ namespace ProxmoxVEGui
             profileList.Size = new Size(448, 280);
             profileList.BackColor = Color.FromArgb(12, 18, 31);
             profileList.BorderColor = Color.FromArgb(75, 85, 99);
-            profileList.BorderRadius = 13;
+            profileList.BorderRadius = 8;
             profileList.DoubleClick += ProfileList_DoubleClick;
             profileList.RenameRequested += ProfileList_RenameRequested;
 
             btnSaveProfile.NormalColor = Color.FromArgb(249, 115, 22);
             btnSaveProfile.HoverColor = Color.FromArgb(251, 146, 60);
             btnSaveProfile.DownColor = Color.FromArgb(194, 65, 12);
-            btnSaveProfile.BorderRadius = 12;
+            btnSaveProfile.BorderRadius = 6;
             btnSaveProfile.ForeColor = Color.White;
             btnSaveProfile.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
             btnSaveProfile.Location = new Point(26, 404);
@@ -282,7 +282,7 @@ namespace ProxmoxVEGui
             btnLoadProfile.NormalColor = Color.FromArgb(31, 41, 55);
             btnLoadProfile.HoverColor = Color.FromArgb(55, 65, 81);
             btnLoadProfile.DownColor = Color.FromArgb(75, 85, 99);
-            btnLoadProfile.BorderRadius = 12;
+            btnLoadProfile.BorderRadius = 6;
             btnLoadProfile.ForeColor = Color.White;
             btnLoadProfile.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
             btnLoadProfile.Location = new Point(26, 458);
@@ -294,7 +294,7 @@ namespace ProxmoxVEGui
             btnDeleteProfile.NormalColor = Color.FromArgb(127, 29, 29);
             btnDeleteProfile.HoverColor = Color.FromArgb(153, 27, 27);
             btnDeleteProfile.DownColor = Color.FromArgb(100, 20, 20);
-            btnDeleteProfile.BorderRadius = 12;
+            btnDeleteProfile.BorderRadius = 6;
             btnDeleteProfile.ForeColor = Color.White;
             btnDeleteProfile.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
             btnDeleteProfile.Location = new Point(259, 458);
@@ -1196,11 +1196,11 @@ namespace ProxmoxVEGui
 
                     if (selected || hover)
                     {
-                        RoundedButton.DrawLiquidGlass(g, itemRect, backColor, 10, hover && !selected, false, true);
+                        RoundedButton.DrawLiquidGlass(g, itemRect, backColor, 6, hover && !selected, false, true);
                     }
                     else
                     {
-                        using (GraphicsPath itemPath = GetProfileRoundedPath(itemRect, 10))
+                        using (GraphicsPath itemPath = GetProfileRoundedPath(itemRect, 6))
                         using (SolidBrush itemBrush = new SolidBrush(backColor))
                         using (Pen itemPen = new Pen(borderColor, 1F))
                         {
@@ -1259,7 +1259,7 @@ namespace ProxmoxVEGui
                     ? Color.White
                     : Color.FromArgb(209, 213, 219);
 
-                using (GraphicsPath path = GetProfileRoundedPath(rect, 8))
+                using (GraphicsPath path = GetProfileRoundedPath(rect, 4))
                 using (SolidBrush brush = new SolidBrush(buttonBackColor))
                 using (Pen pen = new Pen(hover ? Color.FromArgb(251, 146, 60) : Color.FromArgb(75, 85, 99), 1F))
                 {

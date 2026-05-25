@@ -129,9 +129,9 @@ namespace ProxmoxVEGui
                 // Reset clip for border painting
                 g.ResetClip();
 
-                // Draw glossy card border
+                // Draw subtle Fluent card border
                 using (LinearGradientBrush borderBrush = new LinearGradientBrush(
-                    rect, Color.FromArgb(70, 255, 255, 255), Color.FromArgb(20, 255, 255, 255), LinearGradientMode.Vertical))
+                    rect, Color.FromArgb(40, 255, 255, 255), Color.FromArgb(15, 255, 255, 255), LinearGradientMode.Vertical))
                 using (Pen borderPen = new Pen(borderBrush, 1f))
                 {
                     g.DrawPath(borderPen, path);

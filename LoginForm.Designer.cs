@@ -97,7 +97,7 @@ namespace ProxmoxVEGui
 
             this.panelCard.BackColor = Color.FromArgb(17, 24, 39);
             this.panelCard.BorderColor = Color.FromArgb(55, 65, 81);
-            this.panelCard.BorderRadius = 18;
+            this.panelCard.BorderRadius = 12;
             this.panelCard.BorderSize = 1;
             this.panelCard.Location = new Point(60, 150);
             this.panelCard.Size = new Size(500, 530);
@@ -325,7 +325,7 @@ namespace ProxmoxVEGui
             private static readonly Color NormalBorderColor = Color.FromArgb(75, 85, 99);
             private static readonly Color FocusBorderColor = Color.FromArgb(249, 115, 22);
 
-            private const int BorderRadius = 11;
+            private const int BorderRadius = 6;
             private const int LeftPadding = 18;
             private const int RightPadding = 18;
 
@@ -458,7 +458,9 @@ namespace ProxmoxVEGui
 
                 Color slotBg = Color.FromArgb(120, InnerBackColor.R, InnerBackColor.G, InnerBackColor.B);
 
-                Rectangle rect = new Rectangle(1, 1, this.Width - 3, this.Height - 3);
+                Rectangle rect = focused 
+                    ? new Rectangle(1, 1, this.Width - 3, this.Height - 3)
+                    : new Rectangle(0, 0, this.Width - 1, this.Height - 1);
 
                 using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, BorderRadius))
                 {
@@ -468,27 +470,7 @@ namespace ProxmoxVEGui
                         e.Graphics.FillPath(brush, path);
                     }
 
-                    // Draw inner shadow at the top for recess depth
-                    Rectangle shadowRect = new Rectangle(rect.X, rect.Y, rect.Width, 6);
-                    using (LinearGradientBrush shadowBrush = new LinearGradientBrush(
-                        shadowRect,
-                        Color.FromArgb(60, 0, 0, 0),
-                        Color.FromArgb(0, 0, 0, 0),
-                        LinearGradientMode.Vertical))
-                    {
-                        e.Graphics.FillRectangle(shadowBrush, shadowRect);
-                    }
-
-                    // Focus halo glow
-                    if (focused)
-                    {
-                        using (GraphicsPath glowPath = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width - 1, this.Height - 1), BorderRadius))
-                        using (Pen glowPen = new Pen(Color.FromArgb(60, FocusBorderColor.R, FocusBorderColor.G, FocusBorderColor.B), 3F))
-                        {
-                            e.Graphics.DrawPath(glowPen, glowPath);
-                        }
-                    }
-
+                    // Draw clean Fluent border
                     using (Pen pen = new Pen(borderColor, borderWidth))
                     {
                         e.Graphics.DrawPath(pen, path);
@@ -603,7 +585,7 @@ namespace ProxmoxVEGui
             {
                 if (this.Width <= 0 || this.Height <= 0) return;
 
-                using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), 11))
+                using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), 6))
                 {
                     this.Region = new Region(path);
                 }
@@ -687,11 +669,11 @@ namespace ProxmoxVEGui
                 Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
                 if (rect.Width > 0 && rect.Height > 0)
                 {
-                    RoundedButton.DrawLiquidGlass(e.Graphics, rect, baseColor, 11, isHover, active, true);
+                    RoundedButton.DrawLiquidGlass(e.Graphics, rect, baseColor, 6, isHover, active, true);
                     
                     if (active)
                     {
-                        using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, 11))
+                        using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, 6))
                         using (Pen pen = new Pen(borderColor, 2F))
                         {
                             e.Graphics.DrawPath(pen, path);

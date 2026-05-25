@@ -7,7 +7,7 @@ namespace ProxmoxVEGui
 {
     public class RoundedButton : Button
     {
-        private int borderRadius = 10;
+        private int borderRadius = 6;
         public int BorderRadius
         {
             get => borderRadius;
@@ -162,68 +162,52 @@ namespace ProxmoxVEGui
 
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Lighten/Darken helper values for 3D liquid gel depth
-            Color topBgColor = Lighten(baseColor, 0.22f);
-            Color bottomBgColor = Darken(baseColor, 0.18f);
-
+            Color fillBg = baseColor;
             if (!enabled)
             {
-                topBgColor = Color.FromArgb(45, 55, 72);
-                bottomBgColor = Color.FromArgb(26, 32, 44);
-            }
-            else
-            {
-                if (isHover)
-                {
-                    topBgColor = Lighten(baseColor, 0.32f);
-                    bottomBgColor = Darken(baseColor, 0.08f);
-                }
-                if (isDown)
-                {
-                    topBgColor = Darken(baseColor, 0.25f);
-                    bottomBgColor = Lighten(baseColor, 0.05f); // Inverted-feel compression
-                }
+                fillBg = Color.FromArgb(31, 41, 55);
             }
 
             using (GraphicsPath path = GetRoundedPath(rect, borderRadius))
             {
-                // 1. Fill base vertical gradient
-                using (LinearGradientBrush bgBrush = new LinearGradientBrush(rect, topBgColor, bottomBgColor, LinearGradientMode.Vertical))
+                // 1. Fill base with solid flat color
+                using (SolidBrush bgBrush = new SolidBrush(fillBg))
                 {
                     g.FillPath(bgBrush, path);
                 }
 
-                // 2. Specular highlight (Gel-like overlay on the top 45%)
-                if (rect.Height > 10)
-                {
-                    Rectangle highlightRect = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, (int)(rect.Height * 0.45f));
-                    if (highlightRect.Width > 0 && highlightRect.Height > 0)
-                    {
-                        using (GraphicsPath highlightPath = GetRoundedPath(highlightRect, borderRadius - 1))
-                        {
-                            int topAlpha = !enabled ? 40 : isDown ? 90 : isHover ? 190 : 130;
-                            int bottomAlpha = !enabled ? 5 : isDown ? 5 : isHover ? 35 : 15;
+                // 2. Draw thin subtle Fluent border
+                Color topPenColor;
+                Color bottomPenColor;
 
-                            using (LinearGradientBrush highlightBrush = new LinearGradientBrush(
-                                new Point(0, highlightRect.Top),
-                                new Point(0, highlightRect.Bottom),
-                                Color.FromArgb(topAlpha, 255, 255, 255),
-                                Color.FromArgb(bottomAlpha, 255, 255, 255)))
-                            {
-                                g.FillPath(highlightBrush, highlightPath);
-                            }
-                        }
-                    }
+                if (!enabled)
+                {
+                    topPenColor = Color.FromArgb(20, 255, 255, 255);
+                    bottomPenColor = Color.FromArgb(10, 255, 255, 255);
                 }
-
-                // 3. Glass refracting border outline (Bright on top, softer on bottom)
-                Color topPenColor = Color.FromArgb(160, 255, 255, 255);
-                Color bottomPenColor = Color.FromArgb(30, 255, 255, 255);
-
-                if (isDown)
+                else
                 {
-                    topPenColor = Color.FromArgb(90, 0, 0, 0); // Shadows cast down
-                    bottomPenColor = Color.FromArgb(40, 255, 255, 255);
+                    // Check if it's a primary/accent button (like bright orange) or a secondary/dark button
+                    bool isBright = (fillBg.R > 200 || fillBg.G > 200 || fillBg.B > 200 || fillBg == Color.FromArgb(249, 115, 22));
+                    
+                    if (isBright)
+                    {
+                        // Accent button: thin border with tiny top highlight
+                        topPenColor = Color.FromArgb(50, 255, 255, 255);
+                        bottomPenColor = Color.FromArgb(40, 0, 0, 0);
+                    }
+                    else
+                    {
+                        // Standard button: subtle outline
+                        topPenColor = Color.FromArgb(35, 255, 255, 255);
+                        bottomPenColor = Color.FromArgb(15, 255, 255, 255);
+                    }
+
+                    if (isDown)
+                    {
+                        topPenColor = Color.FromArgb(40, 0, 0, 0);
+                        bottomPenColor = Color.FromArgb(20, 255, 255, 255);
+                    }
                 }
 
                 using (LinearGradientBrush borderBrush = new LinearGradientBrush(rect, topPenColor, bottomPenColor, LinearGradientMode.Vertical))

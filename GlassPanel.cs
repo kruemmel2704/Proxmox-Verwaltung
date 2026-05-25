@@ -7,7 +7,7 @@ namespace ProxmoxVEGui
 {
     public class GlassPanel : Panel
     {
-        private int borderRadius = 16;
+        private int borderRadius = 12;
         public int BorderRadius
         {
             get => borderRadius;
@@ -41,7 +41,7 @@ namespace ProxmoxVEGui
             }
         }
 
-        private bool enableGlassSheen = true;
+        private bool enableGlassSheen = false;
         public bool EnableGlassSheen
         {
             get => enableGlassSheen;
@@ -122,44 +122,33 @@ namespace ProxmoxVEGui
 
             using (GraphicsPath path = RoundedButton.GetRoundedPath(shrinkRect, BorderRadius))
             {
-                // Translucent background
+                // Fluent Card background (solid or highly opaque)
                 Color bgCol = this.BackColor;
-                int alpha = (bgCol == Color.Transparent || bgCol.A == 0) ? 0 : 160;
-                Color glassBg = Color.FromArgb(alpha, bgCol.R, bgCol.G, bgCol.B);
+                Color cardBg = (bgCol == Color.Transparent || bgCol.A == 0) 
+                    ? Color.Transparent 
+                    : Color.FromArgb(bgCol.A, bgCol.R, bgCol.G, bgCol.B);
 
-                using (SolidBrush bgBrush = new SolidBrush(glassBg))
+                if (cardBg != Color.Transparent)
                 {
-                    e.Graphics.FillPath(bgBrush, path);
-                }
-
-                // Specular highlights
-                if (enableGlassSheen && this.Height > 16)
-                {
-                    RectangleF highlightRect = new RectangleF(1, 1, this.Width - 2, (this.Height - 2) * 0.35f);
-                    if (highlightRect.Height > 0)
+                    using (SolidBrush bgBrush = new SolidBrush(cardBg))
                     {
-                        using (GraphicsPath highlightPath = RoundedButton.GetRoundedPath(Rectangle.Round(highlightRect), BorderRadius - 1))
-                        {
-                            using (LinearGradientBrush highlightBrush = new LinearGradientBrush(
-                                new PointF(0, highlightRect.Top),
-                                new PointF(0, highlightRect.Bottom),
-                                Color.FromArgb(40, 255, 255, 255),
-                                Color.FromArgb(2, 255, 255, 255)))
-                            {
-                                e.Graphics.FillPath(highlightBrush, highlightPath);
-                            }
-                        }
+                        e.Graphics.FillPath(bgBrush, path);
                     }
                 }
 
-                // Glass refracting border
-                Color topBorderColor = Color.FromArgb(90, 255, 255, 255);
-                Color bottomBorderColor = Color.FromArgb(25, 255, 255, 255);
+                // Fluent border style - extremely subtle gradient for top-light elevation feel
+                Color topBorderColor;
+                Color bottomBorderColor;
 
                 if (BorderColor != Color.Transparent && BorderColor.A > 0)
                 {
-                    topBorderColor = Color.FromArgb(130, BorderColor.R, BorderColor.G, BorderColor.B);
-                    bottomBorderColor = Color.FromArgb(35, BorderColor.R, BorderColor.G, BorderColor.B);
+                    topBorderColor = Color.FromArgb(Math.Min(255, BorderColor.A + 20), BorderColor.R, BorderColor.G, BorderColor.B);
+                    bottomBorderColor = BorderColor;
+                }
+                else
+                {
+                    topBorderColor = Color.FromArgb(40, 255, 255, 255);
+                    bottomBorderColor = Color.FromArgb(15, 255, 255, 255);
                 }
 
                 using (LinearGradientBrush borderBrush = new LinearGradientBrush(
