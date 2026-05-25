@@ -50,70 +50,92 @@ namespace ProxmoxVEGui
             int width = this.Width;
             int height = this.Height;
 
-            // Fill background
-            using (var bgBrush = new SolidBrush(this.BackColor))
-            {
-                g.FillRectangle(bgBrush, 0, 0, width, height);
-            }
+            int borderRadius = 12;
+            Rectangle rect = new Rectangle(0, 0, width - 1, height - 1);
 
-            // Draw grid lines
-            using (var gridPen = new Pen(Color.FromArgb(10, 15, 25), 1)) // slate-950 (login background)
+            if (width <= 0 || height <= 0) return;
+
+            using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, borderRadius))
             {
-                for (int i = 1; i < 4; i++)
+                // Set clip to keep charts inside rounded corners
+                g.SetClip(path);
+
+                // Fill background with semi-transparent slot bg
+                using (var bgBrush = new SolidBrush(Color.FromArgb(110, 12, 18, 31)))
                 {
-                    float y = height * (i / 4f);
-                    g.DrawLine(gridPen, 0, y, width, y);
+                    g.FillPath(bgBrush, path);
                 }
-            }
 
-            // Draw border
-            using (var borderPen = new Pen(Color.FromArgb(55, 65, 81), 1)) // border color (login card border)
-            {
-                g.DrawRectangle(borderPen, 0, 0, width - 1, height - 1);
-            }
-
-            if (_history.Count < 2) return;
-
-            // Map values to screen coordinates
-            var points = new PointF[_history.Count];
-            float xStep = (float)width / (_maxPoints - 1);
-
-            for (int i = 0; i < _history.Count; i++)
-            {
-                double val = _history[i];
-                val = Math.Max(0.0, Math.Min(100.0, val));
-                float x = i * xStep;
-                // Leave some margins top and bottom
-                float y = height - (float)(val / 100.0 * (height - 35)) - 10;
-                points[i] = new PointF(x, y);
-            }
-
-            // Draw gradient area
-            using (var path = new GraphicsPath())
-            {
-                path.AddLine(0, height, points[0].X, points[0].Y);
-                for (int i = 1; i < points.Length; i++)
+                // Draw grid lines inside clip
+                using (var gridPen = new Pen(Color.FromArgb(15, 255, 255, 255), 1))
                 {
-                    path.AddLine(points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y);
+                    for (int i = 1; i < 4; i++)
+                    {
+                        float y = height * (i / 4f);
+                        g.DrawLine(gridPen, 0, y, width, y);
+                    }
                 }
-                path.AddLine(points[points.Length - 1].X, points[points.Length - 1].Y, width, height);
-                path.CloseFigure();
 
-                using (var fillBrush = new LinearGradientBrush(
-                    new Point(0, 0),
-                    new Point(0, height),
-                    Color.FromArgb(100, ChartColor.R, ChartColor.G, ChartColor.B),
-                    Color.FromArgb(0, ChartColor.R, ChartColor.G, ChartColor.B)
-                ))
+                if (_history.Count >= 2)
                 {
-                    g.FillPath(fillBrush, path);
-                }
-            }
+                    // Map values to screen coordinates
+                    var points = new PointF[_history.Count];
+                    float xStep = (float)width / (_maxPoints - 1);
 
-            // Draw solid line
-            using (var linePen = new Pen(ChartColor, 2f))
-            {
-                g.DrawLines(linePen, points);
+                    for (int i = 0; i < _history.Count; i++)
+                    {
+                        double val = _history[i];
+                        val = Math.Max(0.0, Math.Min(100.0, val));
+                        float x = i * xStep;
+                        float y = height - (float)(val / 100.0 * (height - 35)) - 10;
+                        points[i] = new PointF(x, y);
+                    }
+
+                    // Draw gradient area
+                    using (var fillPath = new GraphicsPath())
+                    {
+                        fillPath.AddLine(0, height, points[0].X, points[0].Y);
+                        for (int i = 1; i < points.Length; i++)
+                        {
+                            fillPath.AddLine(points[i - 1].X, points[i - 1].Y, points[i].X, points[i].Y);
+                        }
+                        fillPath.AddLine(points[points.Length - 1].X, points[points.Length - 1].Y, width, height);
+                        fillPath.CloseFigure();
+
+                        using (var fillBrush = new LinearGradientBrush(
+                            new Point(0, 0),
+                            new Point(0, height),
+                            Color.FromArgb(80, ChartColor.R, ChartColor.G, ChartColor.B),
+                            Color.FromArgb(0, ChartColor.R, ChartColor.G, ChartColor.B)
+                        ))
+                        {
+                            g.FillPath(fillBrush, fillPath);
+                        }
+                    }
+
+                    // Draw glowing trace line
+                    using (var glowPen = new Pen(Color.FromArgb(60, ChartColor.R, ChartColor.G, ChartColor.B), 4f))
+                    {
+                        g.DrawLines(glowPen, points);
+                    }
+
+                    // Draw solid trace line
+                    using (var linePen = new Pen(ChartColor, 2f))
+                    {
+                        g.DrawLines(linePen, points);
+                    }
+                }
+
+                // Reset clip for border painting
+                g.ResetClip();
+
+                // Draw glossy card border
+                using (LinearGradientBrush borderBrush = new LinearGradientBrush(
+                    rect, Color.FromArgb(70, 255, 255, 255), Color.FromArgb(20, 255, 255, 255), LinearGradientMode.Vertical))
+                using (Pen borderPen = new Pen(borderBrush, 1f))
+                {
+                    g.DrawPath(borderPen, path);
+                }
             }
 
             // Draw overlay text
@@ -121,9 +143,10 @@ namespace ProxmoxVEGui
             string labelText = $"{Title}: {Math.Round(curVal, 1)}{Suffix}";
 
             using (var font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold))
-            using (var textBrush = new SolidBrush(Color.FromArgb(241, 245, 249))) // slate-100
+            using (var textBrush = new SolidBrush(Color.FromArgb(241, 245, 249)))
             {
-                g.DrawString(labelText, font, textBrush, 10, 8);
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                g.DrawString(labelText, font, textBrush, 12, 10);
             }
         }
     }

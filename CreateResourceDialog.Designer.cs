@@ -50,6 +50,9 @@ namespace ProxmoxVEGui
             this.cmbOsType = new System.Windows.Forms.ComboBox();
             this.lblIsoImage = new System.Windows.Forms.Label();
             this.cmbIsoImage = new System.Windows.Forms.ComboBox();
+            this.chkAutounattend = new System.Windows.Forms.CheckBox();
+            this.lblAutounattendIso = new System.Windows.Forms.Label();
+            this.cmbAutounattendIso = new System.Windows.Forms.ComboBox();
             this.lblTemplatePath = new System.Windows.Forms.Label();
             this.cmbTemplatePath = new System.Windows.Forms.ComboBox();
             this.panelDragDrop = new System.Windows.Forms.Panel();
@@ -331,6 +334,9 @@ namespace ProxmoxVEGui
             this.tabOS.Controls.Add(this.cmbOsType);
             this.tabOS.Controls.Add(this.lblIsoImage);
             this.tabOS.Controls.Add(this.cmbIsoImage);
+            this.tabOS.Controls.Add(this.chkAutounattend);
+            this.tabOS.Controls.Add(this.lblAutounattendIso);
+            this.tabOS.Controls.Add(this.cmbAutounattendIso);
             this.tabOS.Controls.Add(this.lblTemplatePath);
             this.tabOS.Controls.Add(this.cmbTemplatePath);
             this.tabOS.Controls.Add(this.panelDragDrop);
@@ -396,6 +402,44 @@ namespace ProxmoxVEGui
             this.cmbIsoImage.Name = "cmbIsoImage";
             this.cmbIsoImage.Size = new System.Drawing.Size(400, 25);
             this.cmbIsoImage.TabIndex = 4;
+            // 
+            // chkAutounattend
+            // 
+            this.chkAutounattend.AutoSize = true;
+            this.chkAutounattend.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold);
+            this.chkAutounattend.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
+            this.chkAutounattend.Location = new System.Drawing.Point(33, 195);
+            this.chkAutounattend.Name = "chkAutounattend";
+            this.chkAutounattend.Size = new System.Drawing.Size(262, 23);
+            this.chkAutounattend.TabIndex = 7;
+            this.chkAutounattend.Text = "Include Autounattend / Secondary ISO";
+            this.chkAutounattend.UseVisualStyleBackColor = true;
+            this.chkAutounattend.Visible = false;
+            this.chkAutounattend.CheckedChanged += new System.EventHandler(this.chkAutounattend_CheckedChanged);
+            // 
+            // lblAutounattendIso
+            // 
+            this.lblAutounattendIso.AutoSize = true;
+            this.lblAutounattendIso.Font = new System.Drawing.Font("Segoe UI Semibold", 10F, System.Drawing.FontStyle.Bold);
+            this.lblAutounattendIso.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(203)))), ((int)(((byte)(213)))), ((int)(((byte)(225)))));
+            this.lblAutounattendIso.Location = new System.Drawing.Point(30, 225);
+            this.lblAutounattendIso.Name = "lblAutounattendIso";
+            this.lblAutounattendIso.Size = new System.Drawing.Size(243, 19);
+            this.lblAutounattendIso.TabIndex = 8;
+            this.lblAutounattendIso.Text = "Secondary ISO Image (autounattend)";
+            this.lblAutounattendIso.Visible = false;
+            // 
+            // cmbAutounattendIso
+            // 
+            this.cmbAutounattendIso.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(15)))), ((int)(((byte)(23)))), ((int)(((byte)(42)))));
+            this.cmbAutounattendIso.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.cmbAutounattendIso.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.cmbAutounattendIso.ForeColor = System.Drawing.Color.White;
+            this.cmbAutounattendIso.Location = new System.Drawing.Point(33, 250);
+            this.cmbAutounattendIso.Name = "cmbAutounattendIso";
+            this.cmbAutounattendIso.Size = new System.Drawing.Size(400, 25);
+            this.cmbAutounattendIso.TabIndex = 9;
+            this.cmbAutounattendIso.Visible = false;
             // 
             // lblTemplatePath
             // 
@@ -1025,6 +1069,9 @@ namespace ProxmoxVEGui
         private System.Windows.Forms.ComboBox cmbOsType;
         private System.Windows.Forms.Label lblIsoImage;
         private System.Windows.Forms.ComboBox cmbIsoImage;
+        private System.Windows.Forms.CheckBox chkAutounattend;
+        private System.Windows.Forms.Label lblAutounattendIso;
+        private System.Windows.Forms.ComboBox cmbAutounattendIso;
         private System.Windows.Forms.Label lblTemplatePath;
         private System.Windows.Forms.ComboBox cmbTemplatePath;
         private System.Windows.Forms.Panel panelDragDrop;

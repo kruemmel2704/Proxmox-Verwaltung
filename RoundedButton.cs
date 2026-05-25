@@ -104,12 +104,12 @@ namespace ProxmoxVEGui
             }
             if (parentBg == Color.Transparent || parentBg.A == 0 || parentBg == SystemColors.Control)
             {
-                parentBg = Color.FromArgb(17, 24, 39); // Fallback to the main panel dark background
+                parentBg = Color.FromArgb(10, 15, 25); // Fallback to the main panel dark background
             }
 
             // Set up high quality anti-aliasing for the corners
             pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            pevent.Graphics.PixelOffsetMode = PixelOffsetMode.Default; // Use default to prevent half-pixel shifting at boundaries
+            pevent.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
             // Draw parent background color on the entire client rectangle to clear corners
             using (SolidBrush bgBrush = new SolidBrush(parentBg))
@@ -117,39 +117,121 @@ namespace ProxmoxVEGui
                 pevent.Graphics.FillRectangle(bgBrush, this.ClientRectangle);
             }
 
-            // Fill rounded path with button background color
-            Color fillColor;
+            // Determine base color for the button
+            Color baseColor;
             Color textColor;
 
             if (!this.Enabled)
             {
-                fillColor = Color.FromArgb(31, 41, 55); // Muted dark background for disabled state (Slate 800)
+                baseColor = Color.FromArgb(31, 41, 55); // Muted dark background for disabled state (Slate 800)
                 textColor = Color.FromArgb(156, 163, 175); // Muted gray text for disabled state (Slate 400)
             }
             else
             {
-                fillColor = isDown ? DownColor : isHover ? HoverColor : this.BackColor;
+                baseColor = isDown ? DownColor : isHover ? HoverColor : this.BackColor;
                 textColor = this.ForeColor;
             }
 
-            // Use the full width and height to prevent unpainted gaps at the edges (which cause dark crescent outlines)
-            Rectangle rect = new Rectangle(0, 0, this.Width, this.Height);
-
-            using (GraphicsPath path = GetRoundedPath(rect, BorderRadius))
-            using (SolidBrush brush = new SolidBrush(fillColor))
+            Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
+            if (rect.Width > 0 && rect.Height > 0)
             {
-                pevent.Graphics.FillPath(brush, path);
+                DrawLiquidGlass(pevent.Graphics, rect, baseColor, BorderRadius, isHover, isDown, this.Enabled);
             }
 
-            // Render Text (shifted down by 1 pixel to center perfectly vertically with Segoe UI)
-            TextRenderer.DrawText(
-                pevent.Graphics,
-                this.Text,
-                this.Font,
-                new Rectangle(0, 1, this.Width, this.Height),
-                textColor,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
-            );
+            // Render Text with GDI+ to prevent pixelated/fringed text rendering on alpha-blended backgrounds
+            using (StringFormat sf = new StringFormat())
+            {
+                sf.Alignment = StringAlignment.Center;
+                sf.LineAlignment = StringAlignment.Center;
+                sf.Trimming = StringTrimming.EllipsisCharacter;
+                sf.FormatFlags = StringFormatFlags.NoWrap;
+
+                pevent.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+                using (SolidBrush textBrush = new SolidBrush(textColor))
+                {
+                    pevent.Graphics.DrawString(this.Text, this.Font, textBrush, new RectangleF(0, 0, this.Width, this.Height), sf);
+                }
+            }
+        }
+
+        public static void DrawLiquidGlass(Graphics g, Rectangle rect, Color baseColor, int borderRadius, bool isHover, bool isDown, bool enabled)
+        {
+            if (rect.Width <= 0 || rect.Height <= 0) return;
+            if (baseColor == Color.Transparent || baseColor.A == 0) return; // Keep transparent buttons transparent
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Lighten/Darken helper values for 3D liquid gel depth
+            Color topBgColor = Lighten(baseColor, 0.22f);
+            Color bottomBgColor = Darken(baseColor, 0.18f);
+
+            if (!enabled)
+            {
+                topBgColor = Color.FromArgb(45, 55, 72);
+                bottomBgColor = Color.FromArgb(26, 32, 44);
+            }
+            else
+            {
+                if (isHover)
+                {
+                    topBgColor = Lighten(baseColor, 0.32f);
+                    bottomBgColor = Darken(baseColor, 0.08f);
+                }
+                if (isDown)
+                {
+                    topBgColor = Darken(baseColor, 0.25f);
+                    bottomBgColor = Lighten(baseColor, 0.05f); // Inverted-feel compression
+                }
+            }
+
+            using (GraphicsPath path = GetRoundedPath(rect, borderRadius))
+            {
+                // 1. Fill base vertical gradient
+                using (LinearGradientBrush bgBrush = new LinearGradientBrush(rect, topBgColor, bottomBgColor, LinearGradientMode.Vertical))
+                {
+                    g.FillPath(bgBrush, path);
+                }
+
+                // 2. Specular highlight (Gel-like overlay on the top 45%)
+                if (rect.Height > 10)
+                {
+                    Rectangle highlightRect = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, (int)(rect.Height * 0.45f));
+                    if (highlightRect.Width > 0 && highlightRect.Height > 0)
+                    {
+                        using (GraphicsPath highlightPath = GetRoundedPath(highlightRect, borderRadius - 1))
+                        {
+                            int topAlpha = !enabled ? 40 : isDown ? 90 : isHover ? 190 : 130;
+                            int bottomAlpha = !enabled ? 5 : isDown ? 5 : isHover ? 35 : 15;
+
+                            using (LinearGradientBrush highlightBrush = new LinearGradientBrush(
+                                new Point(0, highlightRect.Top),
+                                new Point(0, highlightRect.Bottom),
+                                Color.FromArgb(topAlpha, 255, 255, 255),
+                                Color.FromArgb(bottomAlpha, 255, 255, 255)))
+                            {
+                                g.FillPath(highlightBrush, highlightPath);
+                            }
+                        }
+                    }
+                }
+
+                // 3. Glass refracting border outline (Bright on top, softer on bottom)
+                Color topPenColor = Color.FromArgb(160, 255, 255, 255);
+                Color bottomPenColor = Color.FromArgb(30, 255, 255, 255);
+
+                if (isDown)
+                {
+                    topPenColor = Color.FromArgb(90, 0, 0, 0); // Shadows cast down
+                    bottomPenColor = Color.FromArgb(40, 255, 255, 255);
+                }
+
+                using (LinearGradientBrush borderBrush = new LinearGradientBrush(rect, topPenColor, bottomPenColor, LinearGradientMode.Vertical))
+                using (Pen borderPen = new Pen(borderBrush, 1f))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
         }
 
         public static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
@@ -185,6 +267,16 @@ namespace ProxmoxVEGui
             float brightness = color.GetBrightness();
             float factor = brightness < 0.2f ? 0.40f : -0.20f;
             return AdjustBrightness(color, factor);
+        }
+
+        private static Color Lighten(Color color, float percent)
+        {
+            return AdjustBrightness(color, percent);
+        }
+
+        private static Color Darken(Color color, float percent)
+        {
+            return AdjustBrightness(color, -percent);
         }
 
         private static Color AdjustBrightness(Color color, float correctionFactor)

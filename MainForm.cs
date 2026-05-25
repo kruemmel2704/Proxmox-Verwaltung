@@ -1237,14 +1237,14 @@ namespace ProxmoxVEGui
             if (tabName == "dashboard")
             {
                 panelDashboard.Visible = true;
-                btnTabDashboard.BackColor = Color.FromArgb(10, 15, 25);
-                btnTabDashboard.ForeColor = Color.FromArgb(249, 115, 22);
+                btnTabDashboard.BackColor = Color.FromArgb(249, 115, 22);
+                btnTabDashboard.ForeColor = Color.White;
             }
             else if (tabName == "console")
             {
                 panelConsole.Visible = true;
-                btnTabConsole.BackColor = Color.FromArgb(10, 15, 25);
-                btnTabConsole.ForeColor = Color.FromArgb(249, 115, 22);
+                btnTabConsole.BackColor = Color.FromArgb(249, 115, 22);
+                btnTabConsole.ForeColor = Color.White;
                 LoadConsoleForSelectedResource();
             }
             else if (tabName == "config")
@@ -1252,8 +1252,8 @@ namespace ProxmoxVEGui
                 if (_configPanel != null)
                 {
                     _configPanel.Visible = true;
-                    btnTabConfig.BackColor = Color.FromArgb(10, 15, 25);
-                    btnTabConfig.ForeColor = Color.FromArgb(249, 115, 22);
+                    btnTabConfig.BackColor = Color.FromArgb(249, 115, 22);
+                    btnTabConfig.ForeColor = Color.White;
                     LoadConfigForSelectedResource();
                 }
             }
@@ -1317,7 +1317,9 @@ namespace ProxmoxVEGui
             else if (tag.Type == "vm")
                 consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=kvm&novnc=1&vmid={tag.VmId}&node={tag.NodeName}";
             else if (tag.Type == "lxc")
-                consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=lxc&novnc=1&vmid={tag.VmId}&node={tag.NodeName}";
+            {
+                consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=lxc&xtermjs=1&vmid={tag.VmId}&node={tag.NodeName}";
+            }
 
             lblConsoleWarning.Visible = true;
             webViewConsole.Visible = false;
@@ -1327,7 +1329,8 @@ namespace ProxmoxVEGui
                 if (!_webViewInitialized)
                 {
                     var options = new CoreWebView2EnvironmentOptions("--ignore-certificate-errors");
-                    var env = await CoreWebView2Environment.CreateAsync(null, null, options);
+                    string userDataFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProxmoxVEGui", "WebView2");
+                    var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                     await webViewConsole.EnsureCoreWebView2Async(env);
                     _webViewInitialized = true;
                 }
