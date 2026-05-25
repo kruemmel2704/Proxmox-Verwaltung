@@ -545,7 +545,8 @@ namespace ProxmoxVEGui
                 if (!_webViewInitialized)
                 {
                     var options = new CoreWebView2EnvironmentOptions("--ignore-certificate-errors");
-                    var env = await CoreWebView2Environment.CreateAsync(null, null, options);
+                    string userDataFolder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ProxmoxVEGui", "WebView2");
+                    var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder, options);
                     await webViewConsole.EnsureCoreWebView2Async(env);
                     _webViewInitialized = true;
                 }
