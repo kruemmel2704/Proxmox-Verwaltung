@@ -31,6 +31,11 @@ namespace ProxmoxVEGui
         private readonly Color _statusRunningColor = Color.FromArgb(34, 197, 94);
         private readonly Color _statusStoppedColor = Color.FromArgb(239, 68, 68);
 
+        // Resource context menu (right click on VM/LXC)
+        private ContextMenuStrip _resourceContextMenu;
+        private ToolStripMenuItem _contextStartItem;
+        private ToolStripMenuItem _contextStopItem;
+
         // TreeView scrollbar
         private ModernScrollbarPart _treeScrollTrack;
         private ModernScrollbarPart _treeScrollThumb;
@@ -120,6 +125,9 @@ namespace ProxmoxVEGui
             treeResources.KeyDown -= treeResources_KeyDown;
             treeResources.KeyDown += treeResources_KeyDown;
 
+            treeResources.NodeMouseClick -= treeResources_NodeMouseClick;
+            treeResources.NodeMouseClick += treeResources_NodeMouseClick;
+
             treeResources.Resize -= treeResources_ResizeOrMove;
             treeResources.Resize += treeResources_ResizeOrMove;
 
@@ -129,6 +137,7 @@ namespace ProxmoxVEGui
             _treeScrollbarHider = new TreeViewNativeScrollbarHider();
             _treeScrollbarHider.Attach(treeResources);
 
+            InitializeResourceContextMenu();
             CreateTreeScrollbar();
             PositionTreeScrollbar();
             HideNativeTreeScrollbars();
@@ -597,6 +606,85 @@ namespace ProxmoxVEGui
                     UpdateTreeScrollbar();
                 }));
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // RESOURCE CONTEXT MENU (RIGHT CLICK VM/LXC)
+        // ─────────────────────────────────────────────────────────────────────
+
+        private void InitializeResourceContextMenu()
+        {
+            if (_resourceContextMenu != null) return;
+
+            _resourceContextMenu = new ContextMenuStrip
+            {
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.FromArgb(226, 232, 240),
+                ShowImageMargin = true,
+                ShowCheckMargin = false,
+                Renderer = new ModernContextMenuRenderer()
+            };
+
+            _contextStartItem = new ToolStripMenuItem("▶ Starten")
+            {
+                ForeColor = Color.FromArgb(226, 232, 240)
+            };
+            _contextStartItem.Click += (s, e) => PerformPowerAction("start");
+
+            _contextStopItem = new ToolStripMenuItem("■ Stoppen")
+            {
+                ForeColor = Color.FromArgb(226, 232, 240)
+            };
+            _contextStopItem.Click += (s, e) => PerformPowerAction("stop");
+
+            _resourceContextMenu.Items.Add(_contextStartItem);
+            _resourceContextMenu.Items.Add(_contextStopItem);
+        }
+
+        private void treeResources_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right || e.Node == null) return;
+
+            var tag = e.Node.Tag as ResourceTag;
+            if (tag == null || (tag.Type != "vm" && tag.Type != "lxc")) return;
+
+            treeResources.SelectedNode = e.Node;
+            UpdateUIForSelectedResource(tag);
+            UpdateResourceContextMenuState(tag);
+
+            _resourceContextMenu.Show(treeResources, e.Location);
+        }
+
+        private void UpdateResourceContextMenuState(ResourceTag tag)
+        {
+            if (_contextStartItem == null || _contextStopItem == null) return;
+
+            bool isVmOrLxc = tag != null && (tag.Type == "vm" || tag.Type == "lxc");
+            string status = GetResourceStatus(tag);
+            bool isRunning = string.Equals(status, "running", StringComparison.OrdinalIgnoreCase);
+
+            _contextStartItem.Enabled = isVmOrLxc && !isRunning;
+            _contextStopItem.Enabled = isVmOrLxc && isRunning;
+
+            if (tag != null)
+            {
+                string title = tag.Type == "vm" ? "VM" : "LXC";
+                _contextStartItem.Text = $"▶ {title} starten";
+                _contextStopItem.Text = $"■ {title} stoppen";
+            }
+        }
+
+        private string GetResourceStatus(ResourceTag tag)
+        {
+            if (tag == null) return "";
+
+            if (tag.Type == "vm" && tag.Data is PveVm vm)
+                return vm.Status ?? "";
+
+            if (tag.Type == "lxc" && tag.Data is PveLxc lxc)
+                return lxc.Status ?? "";
+
+            return "";
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -1669,6 +1757,63 @@ namespace ProxmoxVEGui
 
             return path;
         }
+    }
+
+    public class ModernContextMenuRenderer : ToolStripProfessionalRenderer
+    {
+        public ModernContextMenuRenderer() : base(new ModernContextMenuColors())
+        {
+        }
+
+        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
+        {
+            Rectangle rect = new Rectangle(Point.Empty, e.Item.Size);
+
+            if (e.Item.Selected && e.Item.Enabled)
+            {
+                using (SolidBrush brush = new SolidBrush(Color.FromArgb(249, 115, 22)))
+                {
+                    e.Graphics.FillRectangle(brush, rect);
+                }
+            }
+            else
+            {
+                using (SolidBrush brush = new SolidBrush(Color.FromArgb(15, 23, 42)))
+                {
+                    e.Graphics.FillRectangle(brush, rect);
+                }
+            }
+        }
+
+        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e)
+        {
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(15, 23, 42)))
+            {
+                e.Graphics.FillRectangle(brush, e.AffectedBounds);
+            }
+        }
+
+        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
+        {
+            Rectangle rect = new Rectangle(0, 0, e.ToolStrip.Width - 1, e.ToolStrip.Height - 1);
+            using (Pen pen = new Pen(Color.FromArgb(51, 65, 85)))
+            {
+                e.Graphics.DrawRectangle(pen, rect);
+            }
+        }
+    }
+
+    public class ModernContextMenuColors : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground => Color.FromArgb(15, 23, 42);
+        public override Color ImageMarginGradientBegin => Color.FromArgb(15, 23, 42);
+        public override Color ImageMarginGradientMiddle => Color.FromArgb(15, 23, 42);
+        public override Color ImageMarginGradientEnd => Color.FromArgb(15, 23, 42);
+        public override Color MenuItemSelected => Color.FromArgb(249, 115, 22);
+        public override Color MenuItemBorder => Color.FromArgb(249, 115, 22);
+        public override Color MenuBorder => Color.FromArgb(51, 65, 85);
+        public override Color SeparatorDark => Color.FromArgb(51, 65, 85);
+        public override Color SeparatorLight => Color.FromArgb(51, 65, 85);
     }
 
     public class TreeViewNativeScrollbarHider : NativeWindow
