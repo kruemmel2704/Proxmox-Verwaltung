@@ -534,7 +534,7 @@ namespace ProxmoxVEGui
             }
             else if (tag.Type == "lxc")
             {
-                consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=lxc&novnc=1&vmid={tag.VmId}&node={tag.NodeName}";
+                consoleUrl = $"https://{_client.Host}:{_client.Port}/?console=lxc&xtermjs=1&vmid={tag.VmId}&node={tag.NodeName}";
             }
 
             lblConsoleWarning.Visible = true;
