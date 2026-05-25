@@ -12,7 +12,7 @@ namespace ProxmoxVEGui
 
         private Label lblTitle;
         private Label lblSubtitle;
-        private RoundedPanel panelCard;
+        private GlassPanel panelCard;
 
         private Label lblHost;
         private ModernTextBox txtHost;
@@ -43,7 +43,7 @@ namespace ProxmoxVEGui
         {
             this.lblTitle = new Label();
             this.lblSubtitle = new Label();
-            this.panelCard = new RoundedPanel();
+            this.panelCard = new GlassPanel();
 
             this.lblHost = new Label();
             this.txtHost = new ModernTextBox();
@@ -456,14 +456,43 @@ namespace ProxmoxVEGui
                 Color borderColor = focused ? FocusBorderColor : NormalBorderColor;
                 float borderWidth = focused ? 2F : 1F;
 
-                Rectangle rect = new Rectangle(2, 2, this.Width - 5, this.Height - 5);
+                Color slotBg = Color.FromArgb(120, InnerBackColor.R, InnerBackColor.G, InnerBackColor.B);
+
+                Rectangle rect = new Rectangle(1, 1, this.Width - 3, this.Height - 3);
 
                 using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, BorderRadius))
-                using (SolidBrush brush = new SolidBrush(InnerBackColor))
-                using (Pen pen = new Pen(borderColor, borderWidth))
                 {
-                    e.Graphics.FillPath(brush, path);
-                    e.Graphics.DrawPath(pen, path);
+                    // Draw slot base
+                    using (SolidBrush brush = new SolidBrush(slotBg))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+
+                    // Draw inner shadow at the top for recess depth
+                    Rectangle shadowRect = new Rectangle(rect.X, rect.Y, rect.Width, 6);
+                    using (LinearGradientBrush shadowBrush = new LinearGradientBrush(
+                        shadowRect,
+                        Color.FromArgb(60, 0, 0, 0),
+                        Color.FromArgb(0, 0, 0, 0),
+                        LinearGradientMode.Vertical))
+                    {
+                        e.Graphics.FillRectangle(shadowBrush, shadowRect);
+                    }
+
+                    // Focus halo glow
+                    if (focused)
+                    {
+                        using (GraphicsPath glowPath = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width - 1, this.Height - 1), BorderRadius))
+                        using (Pen glowPen = new Pen(Color.FromArgb(60, FocusBorderColor.R, FocusBorderColor.G, FocusBorderColor.B), 3F))
+                        {
+                            e.Graphics.DrawPath(glowPen, glowPath);
+                        }
+                    }
+
+                    using (Pen pen = new Pen(borderColor, borderWidth))
+                    {
+                        e.Graphics.DrawPath(pen, path);
+                    }
                 }
             }
         }
@@ -643,27 +672,31 @@ namespace ProxmoxVEGui
 
             protected override void OnPaint(PaintEventArgs e)
             {
-                base.OnPaint(e);
-
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
                 bool active = this.Focused || isOpen;
 
+                Color baseColor = Color.FromArgb(12, 18, 31);
                 Color borderColor = active
                     ? Color.FromArgb(249, 115, 22)
                     : isHover
                         ? Color.FromArgb(107, 114, 128)
                         : Color.FromArgb(75, 85, 99);
 
-                Rectangle rect = new Rectangle(1, 1, this.Width - 3, this.Height - 3);
-
-                using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, 11))
-                using (SolidBrush brush = new SolidBrush(Color.FromArgb(12, 18, 31)))
-                using (Pen pen = new Pen(borderColor, active ? 2F : 1F))
+                Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
+                if (rect.Width > 0 && rect.Height > 0)
                 {
-                    e.Graphics.FillPath(brush, path);
-                    e.Graphics.DrawPath(pen, path);
+                    RoundedButton.DrawLiquidGlass(e.Graphics, rect, baseColor, 11, isHover, active, true);
+                    
+                    if (active)
+                    {
+                        using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, 11))
+                        using (Pen pen = new Pen(borderColor, 2F))
+                        {
+                            e.Graphics.DrawPath(pen, path);
+                        }
+                    }
                 }
 
                 Rectangle textRect = new Rectangle(18, 0, this.Width - 62, this.Height);
@@ -821,53 +854,6 @@ namespace ProxmoxVEGui
             }
         }
 
-        private class RoundedPanel : Panel
-        {
-            public int BorderRadius { get; set; } = 16;
-            public int BorderSize { get; set; } = 1;
-            public Color BorderColor { get; set; } = Color.FromArgb(55, 65, 81);
-
-            public RoundedPanel()
-            {
-                this.SetStyle(
-                    ControlStyles.AllPaintingInWmPaint |
-                    ControlStyles.OptimizedDoubleBuffer |
-                    ControlStyles.UserPaint |
-                    ControlStyles.ResizeRedraw,
-                    true
-                );
-            }
-
-            protected override void OnResize(EventArgs eventargs)
-            {
-                base.OnResize(eventargs);
-
-                if (this.Width > 0 && this.Height > 0)
-                {
-                    using (GraphicsPath path = RoundedButton.GetRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
-                    {
-                        this.Region = new Region(path);
-                    }
-                }
-            }
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                base.OnPaint(e);
-
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
-
-                using (GraphicsPath path = RoundedButton.GetRoundedPath(rect, BorderRadius))
-                using (SolidBrush brush = new SolidBrush(this.BackColor))
-                using (Pen pen = new Pen(BorderColor, BorderSize))
-                {
-                    e.Graphics.FillPath(brush, path);
-                    e.Graphics.DrawPath(pen, path);
-                }
-            }
-        }
+        // RoundedPanel replaced by global GlassPanel
     }
 }

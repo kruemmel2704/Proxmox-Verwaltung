@@ -13,7 +13,7 @@ namespace ProxmoxVEGui
     {
         private readonly List<SavedConnectionProfile> savedProfiles = new List<SavedConnectionProfile>();
 
-        private ProfileRoundedPanel panelSavedProfiles;
+        private GlassPanel panelSavedProfiles;
         private Label lblSavedProfilesTitle;
         private ProfileListControl profileList;
         private ProfileActionButton btnSaveProfile;
@@ -51,32 +51,31 @@ namespace ProxmoxVEGui
 
             this.Shown += LoginForm_Shown_CustomProfiles;
             this.Resize += LoginForm_Resize_CustomProfiles;
+
+            SetTransparentBgForLabels(this);
+        }
+
+        private void SetTransparentBgForLabels(Control parent)
+        {
+            foreach (Control ctrl in parent.Controls)
+            {
+                if (ctrl is Label label)
+                {
+                    if (label.Parent is GlassPanel)
+                    {
+                        label.BackColor = Color.Transparent;
+                    }
+                }
+                else if (ctrl.HasChildren)
+                {
+                    SetTransparentBgForLabels(ctrl);
+                }
+            }
         }
 
         private void ApplyApplicationIcon()
         {
-            try
-            {
-                string[] possibleIconPaths =
-                {
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets", "img", "logo.ico"),
-                    Path.Combine(Application.StartupPath, "assets", "img", "logo.ico"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico")
-                };
-
-                foreach (string iconPath in possibleIconPaths)
-                {
-                    if (File.Exists(iconPath))
-                    {
-                        this.Icon = new Icon(iconPath);
-                        return;
-                    }
-                }
-            }
-            catch
-            {
-                // Icon ist optional. Die App soll trotzdem starten.
-            }
+            IconHelper.ApplyIcon(this);
         }
 
         private void LoginForm_Load(object sender, EventArgs e)
@@ -96,7 +95,7 @@ namespace ProxmoxVEGui
 
         private void InitializeSavedProfilesUi()
         {
-            panelSavedProfiles = new ProfileRoundedPanel();
+            panelSavedProfiles = new GlassPanel();
             lblSavedProfilesTitle = new Label();
             profileList = new ProfileListControl();
             btnSaveProfile = new ProfileActionButton();
@@ -823,14 +822,19 @@ namespace ProxmoxVEGui
 
                 using (Font emptyFont = new Font("Segoe UI", 9.5F))
                 {
-                    TextRenderer.DrawText(
-                        g,
-                        "Keine Profile gespeichert",
-                        emptyFont,
-                        textRect,
-                        Color.FromArgb(156, 163, 175),
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
-                    );
+                    g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                    using (StringFormat sf = new StringFormat())
+                    {
+                        sf.Alignment = StringAlignment.Center;
+                        sf.LineAlignment = StringAlignment.Center;
+                        sf.Trimming = StringTrimming.EllipsisCharacter;
+                        sf.FormatFlags = StringFormatFlags.NoWrap;
+
+                        using (SolidBrush brush = new SolidBrush(Color.FromArgb(156, 163, 175)))
+                        {
+                            g.DrawString("Keine Profile gespeichert", emptyFont, brush, textRect, sf);
+                        }
+                    }
                 }
             }
 
@@ -879,12 +883,19 @@ namespace ProxmoxVEGui
                         ? Color.FromArgb(255, 237, 213)
                         : Color.FromArgb(156, 163, 175);
 
-                    using (GraphicsPath itemPath = GetProfileRoundedPath(itemRect, 10))
-                    using (SolidBrush itemBrush = new SolidBrush(backColor))
-                    using (Pen itemPen = new Pen(borderColor, 1F))
+                    if (selected || hover)
                     {
-                        g.FillPath(itemBrush, itemPath);
-                        g.DrawPath(itemPen, itemPath);
+                        RoundedButton.DrawLiquidGlass(g, itemRect, backColor, 10, hover && !selected, false, true);
+                    }
+                    else
+                    {
+                        using (GraphicsPath itemPath = GetProfileRoundedPath(itemRect, 10))
+                        using (SolidBrush itemBrush = new SolidBrush(backColor))
+                        using (Pen itemPen = new Pen(borderColor, 1F))
+                        {
+                            g.FillPath(itemBrush, itemPath);
+                            g.DrawPath(itemPen, itemPath);
+                        }
                     }
 
                     DrawRenameButton(g, renameRect, selected, renameHover);
@@ -895,23 +906,23 @@ namespace ProxmoxVEGui
                     using (Font titleFont = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold))
                     using (Font subtitleFont = new Font("Segoe UI", 8.5F))
                     {
-                        TextRenderer.DrawText(
-                            g,
-                            profile.DisplayName,
-                            titleFont,
-                            titleRect,
-                            titleColor,
-                            TextFormatFlags.Left | TextFormatFlags.EndEllipsis
-                        );
+                        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                        using (StringFormat sf = new StringFormat())
+                        {
+                            sf.Alignment = StringAlignment.Near;
+                            sf.LineAlignment = StringAlignment.Center;
+                            sf.Trimming = StringTrimming.EllipsisCharacter;
+                            sf.FormatFlags = StringFormatFlags.NoWrap;
 
-                        TextRenderer.DrawText(
-                            g,
-                            profile.SubTitle,
-                            subtitleFont,
-                            subtitleRect,
-                            subtitleColor,
-                            TextFormatFlags.Left | TextFormatFlags.EndEllipsis
-                        );
+                            using (SolidBrush titleBrush = new SolidBrush(titleColor))
+                            {
+                                g.DrawString(profile.DisplayName, titleFont, titleBrush, titleRect, sf);
+                            }
+                            using (SolidBrush subtitleBrush = new SolidBrush(subtitleColor))
+                            {
+                                g.DrawString(profile.SubTitle, subtitleFont, subtitleBrush, subtitleRect, sf);
+                            }
+                        }
                     }
                 }
             }
@@ -1108,52 +1119,7 @@ namespace ProxmoxVEGui
             }
         }
 
-        private class ProfileRoundedPanel : Panel
-        {
-            public int BorderRadius { get; set; } = 16;
-            public int BorderSize { get; set; } = 1;
-            public Color BorderColor { get; set; } = Color.FromArgb(55, 65, 81);
-
-            public ProfileRoundedPanel()
-            {
-                this.SetStyle(
-                    ControlStyles.AllPaintingInWmPaint |
-                    ControlStyles.OptimizedDoubleBuffer |
-                    ControlStyles.UserPaint |
-                    ControlStyles.ResizeRedraw,
-                    true
-                );
-            }
-
-            protected override void OnResize(EventArgs eventargs)
-            {
-                base.OnResize(eventargs);
-
-                if (this.Width > 0 && this.Height > 0)
-                {
-                    using (GraphicsPath path = GetProfileRoundedPath(new Rectangle(0, 0, this.Width, this.Height), BorderRadius))
-                    {
-                        this.Region = new Region(path);
-                    }
-                }
-            }
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-                Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
-
-                using (GraphicsPath path = GetProfileRoundedPath(rect, BorderRadius))
-                using (SolidBrush brush = new SolidBrush(this.BackColor))
-                using (Pen pen = new Pen(BorderColor, BorderSize))
-                {
-                    e.Graphics.FillPath(brush, path);
-                    e.Graphics.DrawPath(pen, path);
-                }
-            }
-        }
+        // ProfileRoundedPanel replaced by global GlassPanel
 
         private class ProfileActionButton : Control
         {
@@ -1251,14 +1217,12 @@ namespace ProxmoxVEGui
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-                Color fillColor = isDown ? DownColor : isHover ? HoverColor : NormalColor;
+                Color baseColor = isDown ? DownColor : isHover ? HoverColor : NormalColor;
 
                 Rectangle rect = new Rectangle(0, 0, this.Width - 1, this.Height - 1);
-
-                using (GraphicsPath path = GetProfileRoundedPath(rect, BorderRadius))
-                using (SolidBrush brush = new SolidBrush(fillColor))
+                if (rect.Width > 0 && rect.Height > 0)
                 {
-                    e.Graphics.FillPath(brush, path);
+                    RoundedButton.DrawLiquidGlass(e.Graphics, rect, baseColor, BorderRadius, isHover, isDown, this.Enabled);
                 }
 
                 TextRenderer.DrawText(

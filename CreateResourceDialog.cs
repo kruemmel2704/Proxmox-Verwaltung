@@ -23,6 +23,7 @@ namespace ProxmoxVEGui
             _type = type;
 
             InitializeComponent();
+            IconHelper.ApplyIcon(this);
 
             // Set Title & Subtitle
             lblTitle.Text = type == "vm" ? "Create Virtual Machine" : "Create LXC Container";
@@ -47,6 +48,9 @@ namespace ProxmoxVEGui
 
             // Bind Node change event to load storage pools dynamically
             cmbNode.SelectedIndexChanged += CmbNode_SelectedIndexChanged;
+            
+            // Bind OS type change event to show/hide Windows autounattend options
+            cmbOsType.SelectedIndexChanged += CmbOsType_SelectedIndexChanged;
             
             // Bind Disk storage change event to toggle format support dynamically
             cmbDiskStorage.SelectedIndexChanged += CmbDiskStorage_SelectedIndexChanged;
@@ -75,6 +79,7 @@ namespace ProxmoxVEGui
                 cmbOsType.Visible = true;
                 lblIsoImage.Visible = true;
                 cmbIsoImage.Visible = true;
+                UpdateAutounattendVisibility();
 
                 // System Page
                 lblScsiController.Visible = true;
@@ -105,6 +110,9 @@ namespace ProxmoxVEGui
                 cmbOsType.Visible = false;
                 lblIsoImage.Visible = false;
                 cmbIsoImage.Visible = false;
+                chkAutounattend.Visible = false;
+                lblAutounattendIso.Visible = false;
+                cmbAutounattendIso.Visible = false;
 
                 // System Page
                 lblScsiController.Visible = false;
@@ -309,9 +317,11 @@ namespace ProxmoxVEGui
                 if (_type == "vm")
                 {
                     cmbIsoImage.Items.Clear();
+                    cmbAutounattendIso.Items.Clear();
                     foreach (var file in files.OrderBy(f => f))
                     {
                         cmbIsoImage.Items.Add(file);
+                        cmbAutounattendIso.Items.Add(file);
                     }
 
                     if (cmbIsoImage.Items.Count > 0)
@@ -323,6 +333,30 @@ namespace ProxmoxVEGui
                         // Fallback default
                         cmbIsoImage.Items.Add("local:iso/ubuntu-server-22.04.iso");
                         cmbIsoImage.SelectedIndex = 0;
+                    }
+
+                    if (cmbAutounattendIso.Items.Count > 0)
+                    {
+                        // Try to default to an autounattend or virtio iso if one exists
+                        int defaultAutounattendIdx = -1;
+                        for (int i = 0; i < cmbAutounattendIso.Items.Count; i++)
+                        {
+                            string itemStr = cmbAutounattendIso.Items[i].ToString().ToLower();
+                            if (itemStr.Contains("autounattend") || itemStr.Contains("unattend") || itemStr.Contains("virtio"))
+                            {
+                                defaultAutounattendIdx = i;
+                                break;
+                            }
+                        }
+                        if (defaultAutounattendIdx >= 0)
+                            cmbAutounattendIso.SelectedIndex = defaultAutounattendIdx;
+                        else
+                            cmbAutounattendIso.SelectedIndex = 0;
+                    }
+                    else
+                    {
+                        cmbAutounattendIso.Items.Add("local:iso/autounattend.iso");
+                        cmbAutounattendIso.SelectedIndex = 0;
                     }
                 }
                 else
@@ -353,6 +387,10 @@ namespace ProxmoxVEGui
                     cmbIsoImage.Items.Clear();
                     cmbIsoImage.Items.Add("local:iso/ubuntu-server-22.04.iso");
                     cmbIsoImage.SelectedIndex = 0;
+
+                    cmbAutounattendIso.Items.Clear();
+                    cmbAutounattendIso.Items.Add("local:iso/autounattend.iso");
+                    cmbAutounattendIso.SelectedIndex = 0;
                 }
                 else
                 {
@@ -407,6 +445,10 @@ namespace ProxmoxVEGui
             {
                 summary.AppendLine($" OS TYPE:    {((KeyValuePair<string, string>)cmbOsType.SelectedItem).Value}");
                 summary.AppendLine($" ISO IMAGE:  {cmbIsoImage.Text.Trim()}");
+                if (chkAutounattend.Visible && chkAutounattend.Checked)
+                {
+                    summary.AppendLine($" SEC. ISO:   {cmbAutounattendIso.Text.Trim()}");
+                }
                 summary.AppendLine($" SCSI CONT:  {((KeyValuePair<string, string>)cmbScsiController.SelectedItem).Value}");
                 summary.AppendLine($" QEMU AGENT: {(chkQemuAgent.Checked ? "Enabled" : "Disabled")}");
                 summary.AppendLine($" DISK:       {cmbDiskStorage.SelectedItem} ({numDiskSize.Value} GB, {((KeyValuePair<string, string>)cmbDiskFormat.SelectedItem).Key})");
@@ -457,6 +499,11 @@ namespace ProxmoxVEGui
                 if (_type == "vm" && string.IsNullOrEmpty(cmbIsoImage.Text.Trim()))
                 {
                     MessageBox.Show("Please specify an ISO image path (e.g. local:iso/ubuntu.iso).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+                if (_type == "vm" && chkAutounattend.Visible && chkAutounattend.Checked && string.IsNullOrEmpty(cmbAutounattendIso.Text.Trim()))
+                {
+                    MessageBox.Show("Please specify a secondary ISO image path (e.g. local:iso/autounattend.iso).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return false;
                 }
                 if (_type == "lxc" && string.IsNullOrEmpty(cmbTemplatePath.Text.Trim()))
@@ -540,6 +587,16 @@ namespace ProxmoxVEGui
                 if (!string.IsNullOrEmpty(iso))
                 {
                     parameters.Add("ide2", $"{iso},media=cdrom");
+                }
+
+                // Add secondary ISO for autounattend if checked
+                if (chkAutounattend.Visible && chkAutounattend.Checked)
+                {
+                    string secIso = cmbAutounattendIso.Text.Trim();
+                    if (!string.IsNullOrEmpty(secIso))
+                    {
+                        parameters.Add("sata4", $"{secIso},media=cdrom");
+                    }
                 }
 
                 // Add Disk details
@@ -744,6 +801,55 @@ namespace ProxmoxVEGui
                 btnNext.Enabled = true;
                 btnBack.Enabled = tabWizard.SelectedIndex > 0;
                 btnCancel.Enabled = true;
+            }
+        }
+
+        private void CmbOsType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateAutounattendVisibility();
+        }
+
+        private void chkAutounattend_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateAutounattendVisibility();
+        }
+
+        private void UpdateAutounattendVisibility()
+        {
+            if (_type != "vm") return;
+
+            bool isWindows = false;
+            if (cmbOsType.SelectedValue != null)
+            {
+                string osKey = cmbOsType.SelectedValue.ToString();
+                isWindows = osKey.StartsWith("win");
+            }
+            else if (cmbOsType.SelectedItem is KeyValuePair<string, string> kvp)
+            {
+                isWindows = kvp.Key.StartsWith("win");
+            }
+
+            chkAutounattend.Visible = isWindows;
+
+            if (isWindows && chkAutounattend.Checked)
+            {
+                lblAutounattendIso.Visible = true;
+                cmbAutounattendIso.Visible = true;
+                panelDragDrop.Location = new Point(33, 285);
+                panelDragDrop.Height = 70;
+                
+                lblUploadStatus.Location = new Point(15, 20);
+                pbUploadProgress.Location = new Point(15, 45);
+            }
+            else
+            {
+                lblAutounattendIso.Visible = false;
+                cmbAutounattendIso.Visible = false;
+                panelDragDrop.Location = new Point(33, 230);
+                panelDragDrop.Height = 100;
+                
+                lblUploadStatus.Location = new Point(15, 40);
+                pbUploadProgress.Location = new Point(15, 65);
             }
         }
 
