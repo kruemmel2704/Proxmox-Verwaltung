@@ -69,6 +69,9 @@ namespace ProxmoxVEGui
 
         private async void MainForm_Load(object sender, EventArgs e)
         {
+            lblVersion.Text = "v" + typeof(Program).Assembly.GetName().Version.ToString(3);
+            btnCheckUpdate.BorderRadius = 4;
+
             ApplyTreeViewDesign();
             ApplyGridScrollbar();
 
@@ -79,6 +82,9 @@ namespace ProxmoxVEGui
             SelectDatacenterNode();
 
             timerRefresh.Start();
+
+            // Run background update check silently without blocking startup load
+            _ = Task.Run(() => Updater.CheckForUpdatesAsync(this, silent: true));
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -1448,6 +1454,15 @@ namespace ProxmoxVEGui
         private async void btnRefresh_Click(object sender, EventArgs e)
         {
             await RefreshDataAsync();
+        }
+
+        private async void btnCheckUpdate_Click(object sender, EventArgs e)
+        {
+            btnCheckUpdate.Enabled = false;
+            btnCheckUpdate.Text = "Checking...";
+            await Updater.CheckForUpdatesAsync(this, silent: false);
+            btnCheckUpdate.Enabled = true;
+            btnCheckUpdate.Text = "Check Update";
         }
 
         private async void PerformPowerAction(string action)
