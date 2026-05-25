@@ -1528,7 +1528,30 @@ namespace ProxmoxVEGui
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
+            DeleteRememberLoginFromDisk();
             this.Close();
+        }
+
+        private void DeleteRememberLoginFromDisk()
+        {
+            try
+            {
+                string profilesFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "ProxmoxVEGui"
+                );
+
+                string rememberLoginFile = Path.Combine(profilesFolder, "remember_login.xml");
+
+                if (File.Exists(rememberLoginFile))
+                {
+                    File.Delete(rememberLoginFile);
+                }
+            }
+            catch
+            {
+                // Abmelden soll nicht blockiert werden, falls die Datei gerade gesperrt ist.
+            }
         }
 
         private void btnCreateVm_Click(object sender, EventArgs e) => OpenCreateDialog("vm");
