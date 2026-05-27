@@ -61,6 +61,8 @@ namespace ProxmoxVEGui
         {
             InitializeComponent();
 
+            FixLoginInputFieldColors();
+
             ApplyApplicationIcon();
 
             InitializeStayLoggedInUi();
@@ -76,6 +78,79 @@ namespace ProxmoxVEGui
             this.Resize += LoginForm_Resize_CustomProfiles;
 
             SetTransparentBgForLabels(this);
+        }
+
+        private void FixLoginInputFieldColors()
+        {
+            Color inputBackColor = Color.FromArgb(17, 24, 39);
+            Color inputTextColor = Color.White;
+            Color inputMutedTextColor = Color.FromArgb(229, 231, 235);
+
+            ApplyLoginInputColors(txtHost, inputBackColor, inputTextColor);
+            ApplyLoginInputColors(txtPort, inputBackColor, inputTextColor);
+            ApplyLoginInputColors(txtUsername, inputBackColor, inputTextColor);
+            ApplyLoginInputColors(txtPassword, inputBackColor, inputTextColor);
+
+            if (cmbRealm != null)
+            {
+                cmbRealm.BackColor = inputBackColor;
+                cmbRealm.ForeColor = inputMutedTextColor;
+                cmbRealm.FlatStyle = FlatStyle.Flat;
+            }
+        }
+
+        private void ApplyLoginInputColors(Control control, Color backColor, Color foreColor)
+        {
+            if (control == null) return;
+
+            control.BackColor = backColor;
+            control.ForeColor = foreColor;
+
+            TextBox directTextBox = control as TextBox;
+            if (directTextBox != null)
+            {
+                ApplyNativeTextBoxColors(directTextBox, backColor, foreColor);
+            }
+
+            foreach (Control child in control.Controls)
+            {
+                ApplyLoginInputColors(child, backColor, foreColor);
+            }
+
+            control.GotFocus -= LoginInputControl_GotFocus;
+            control.LostFocus -= LoginInputControl_LostFocus;
+            control.GotFocus += LoginInputControl_GotFocus;
+            control.LostFocus += LoginInputControl_LostFocus;
+
+            control.Invalidate();
+        }
+
+        private void ApplyNativeTextBoxColors(TextBox textBox, Color backColor, Color foreColor)
+        {
+            if (textBox == null) return;
+
+            textBox.BackColor = backColor;
+            textBox.ForeColor = foreColor;
+            textBox.BorderStyle = BorderStyle.None;
+
+            textBox.GotFocus -= LoginInputControl_GotFocus;
+            textBox.LostFocus -= LoginInputControl_LostFocus;
+            textBox.GotFocus += LoginInputControl_GotFocus;
+            textBox.LostFocus += LoginInputControl_LostFocus;
+
+            textBox.Invalidate();
+        }
+
+        private void LoginInputControl_GotFocus(object sender, EventArgs e)
+        {
+            Control control = sender as Control;
+            ApplyLoginInputColors(control, Color.FromArgb(17, 24, 39), Color.White);
+        }
+
+        private void LoginInputControl_LostFocus(object sender, EventArgs e)
+        {
+            Control control = sender as Control;
+            ApplyLoginInputColors(control, Color.FromArgb(17, 24, 39), Color.White);
         }
 
         private void SetTransparentBgForLabels(Control parent)
